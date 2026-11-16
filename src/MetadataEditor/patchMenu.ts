@@ -6,15 +6,15 @@ import { BetterProperties } from "~/Plugin/plugin";
 export const patchMenu = (plugin: BetterProperties) => {
 	const removePatch = around(Menu.prototype, {
 		showAtMouseEvent(old) {
-			return dedupe(monkeyAroundKey, old, function (e) {
+			return dedupe(monkeyAroundKey, old, function(e) {
 				// @ts-ignore Doesn't look like there's a way to get this typed correctly
 				const that = this as Menu;
 				const exit = () => {
 					return old.call(that, e);
 				};
-				const { currentTarget } = e;
+				const currentTarget = e.currentTarget as Node | null;
 				const isMetadataPropertyIcon =
-					currentTarget instanceof HTMLElement &&
+					currentTarget?.instanceOf?.(HTMLElement) &&
 					currentTarget.tagName.toLowerCase() === "span" &&
 					currentTarget.classList.contains("metadata-property-icon");
 
@@ -37,5 +37,5 @@ export const patchMenu = (plugin: BetterProperties) => {
 		},
 	});
 
-	plugin.register(removePatch);
+	plugin.registerRuntime(removePatch);
 };

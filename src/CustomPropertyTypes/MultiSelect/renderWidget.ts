@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { ValueComponent } from "obsidian";
 import { CustomPropertyType } from "../types";
 import { PropertyWidgetComponentNew } from "../utils";
@@ -22,7 +23,7 @@ class MultiSelectTypeComponent extends PropertyWidgetComponentNew<
 	string[]
 > {
 	type = "multiselect" as const;
-	parseValue = (v: unknown): string[] => (Array.isArray(v) ? v : []);
+	parseValue = (v: unknown): string[] => (Array.isArray(v) ? v.filter((item: unknown): item is string => typeof item === "string") : []);
 
 	component: MultiSelectComponent;
 	options: SelectOption[] = [];
@@ -43,7 +44,7 @@ class MultiSelectTypeComponent extends PropertyWidgetComponentNew<
 			!!settings.manualAllowCreate && settings.optionsType !== "dynamic",
 			ctx.sourcePath
 		);
-		this.initOptions();
+		asyncHandler(() => this.initOptions())();
 	}
 
 	getValue(): string[] {
@@ -54,7 +55,7 @@ class MultiSelectTypeComponent extends PropertyWidgetComponentNew<
 		const cmpValue = this.component.getValue();
 		const parsed = this.parseValue(value);
 		const isSame = parsed.every((v, i) => {
-			cmpValue[i] === v;
+			return cmpValue[i] === v;
 		});
 		if (!isSame) {
 			this.component.setValue(parsed);
@@ -82,17 +83,17 @@ class MultiSelectTypeComponent extends PropertyWidgetComponentNew<
 			settings.optionsType === "manual"
 				? settings.manualOptions ?? []
 				: await getDynamicOptions({
-						plugin: this.plugin,
-						ctx: this.ctx,
-						dynamicEmptyLabel: undefined,
-						dynamicOptionsType,
-						fileJsOptionsPath,
-						folderOptionsExcludeFolderNote,
-						folderOptionsPaths,
-						inlineJsOptionsCode,
-						tagOptionsIncludeNested,
-						tagOptionsTags,
-				  });
+					plugin: this.plugin,
+					ctx: this.ctx,
+					dynamicEmptyLabel: undefined,
+					dynamicOptionsType,
+					fileJsOptionsPath,
+					folderOptionsExcludeFolderNote,
+					folderOptionsPaths,
+					inlineJsOptionsCode,
+					tagOptionsIncludeNested,
+					tagOptionsTags,
+				});
 		// if (this.component instanceof SelectComponent) {
 		// 	this.component.selectEl.classList.remove("better-properties-mod-loader");
 		// 	this.component.selectEl.empty();
@@ -114,7 +115,7 @@ class MultiSelectTypeComponent extends PropertyWidgetComponentNew<
 
 class MultiSelectComponent extends ValueComponent<string[]> {
 	set: Set<string> = new Set();
-	onChangeCallback: (v: string[]) => void = () => {};
+	onChangeCallback: (v: string[]) => void = () => { };
 	itemsContainerEl: HTMLDivElement;
 	items: SelectComponent[] = [];
 	options: SelectOption[] = [];
@@ -165,6 +166,7 @@ class MultiSelectComponent extends ValueComponent<string[]> {
 
 	render(): void {
 		this.itemsContainerEl.empty();
+		this.items = [];
 		[...this.set].forEach((v, i) => {
 			this.items.push(this.createItem(v, i));
 		});
@@ -175,7 +177,7 @@ class MultiSelectComponent extends ValueComponent<string[]> {
 
 	focus(): void {
 		const el = this.items[0] ?? this.trailingItem;
-		if (!el) return;
+		if (el === undefined) return;
 		el.selectEl.focus();
 	}
 

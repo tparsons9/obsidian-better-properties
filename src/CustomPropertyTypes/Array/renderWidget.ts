@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { setIcon } from "obsidian";
 import { CustomPropertyType, ModifiedPropertyRenderContext } from "../types";
 import { PropertyWidgetComponentNew } from "../utils";
@@ -234,6 +235,7 @@ class SubPropertyComponent extends PropertyComponent {
 		if (!this.propertyEl) return iconEl;
 
 		makeDraggable({
+			registerCleanup: (cleanup) => this.plugin.registerRuntime(cleanup),
 			itemEl: this.propertyEl,
 			dragHandleEl: iconEl,
 			parentEl: this.containerEl,
@@ -251,13 +253,13 @@ class SubPropertyComponent extends PropertyComponent {
 
 	createValueEl(propertyEl: HTMLDivElement): HTMLDivElement {
 		const el = super.createValueEl(propertyEl);
-		el.addEventListener("keydown", async (e) => {
+		el.addEventListener("keydown", asyncHandler(async (e) => {
 			if (e.key !== "Enter") return;
 			const isLast = this.index === this.owner.getValue().length - 1;
-			if (!(e.key === "Enter" && isLast && e.target instanceof HTMLElement)) {
+			if (!(e.key === "Enter" && isLast && e.targetNode?.instanceOf(HTMLElement))) {
 				return;
 			}
-			const nearestMetadataPropertyEl = e.target.closest(".metadata-property");
+			const nearestMetadataPropertyEl = e.targetNode?.instanceOf(HTMLElement) ? e.targetNode.closest(".metadata-property") : null;
 			const containedByObjectSelector =
 				'.metadata-property-value[data-property-type="better-properties:object"] > .metadata-container > .better-properties-property-object-properties >';
 			const isContainedByObject = nearestMetadataPropertyEl?.matches(
@@ -270,7 +272,7 @@ class SubPropertyComponent extends PropertyComponent {
 			// TODO there's probably a more efficient way to do this?
 			if (isContainedByObject || isContainedByArray) return;
 			this.owner.createAndFocusNewItem();
-		});
+		}));
 		return el;
 	}
 
@@ -281,7 +283,7 @@ class SubPropertyComponent extends PropertyComponent {
 		valueEl.empty();
 		return widget.render(valueEl, this.value, {
 			app: this.plugin.app,
-			blur: () => {},
+			blur: () => { },
 			key: this.key,
 			onChange: (value: unknown) => {
 				this.onChangeCallback(value);

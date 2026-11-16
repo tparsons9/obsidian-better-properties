@@ -1,3 +1,4 @@
+import { ownRegistryEntry } from "~/core/lifecycle";
 import { around, dedupe } from "monkey-around";
 import { debounce, Menu, setIcon } from "obsidian";
 import { MetadataEditor } from "obsidian-typings";
@@ -14,21 +15,19 @@ export const patchMetadataEditor = (plugin: BetterProperties) => {
 
 	// patchMetadataEditorProperty(plugin, mdePrototype);
 
-	mdePrototype.createMoreButtonEl = function () {
+	plugin.registerRuntime(ownRegistryEntry(mdePrototype, "createMoreButtonEl", function(this: PatchedMetadataEditor) {
 		return createMoreButtonEl(this);
-	};
-
-	mdePrototype.toggleShowHidden = function () {
+	}));
+	plugin.registerRuntime(ownRegistryEntry(mdePrototype, "toggleShowHidden", function(this: PatchedMetadataEditor) {
 		return toggleShowHidden(this);
-	};
-
-	mdePrototype.createLabelWidthResizerEl = function () {
-		return createLabelWidthResizerEl(this);
-	};
+	}));
+	plugin.registerRuntime(ownRegistryEntry(mdePrototype, "createLabelWidthResizerEl", function(this: PatchedMetadataEditor) {
+		return createLabelWidthResizerEl(this, plugin);
+	}));
 
 	const removePatch = around(mdePrototype, {
 		load(old) {
-			return dedupe(monkeyAroundKey, old, function () {
+			return dedupe(monkeyAroundKey, old, function() {
 				// @ts-expect-error
 				const that = this as PatchedMetadataEditor;
 				old.call(that);
@@ -43,7 +42,7 @@ export const patchMetadataEditor = (plugin: BetterProperties) => {
 			});
 		},
 		synchronize(old) {
-			return dedupe(monkeyAroundKey, old, function (data) {
+			return dedupe(monkeyAroundKey, old, function(data) {
 				// @ts-expect-error
 				const that = this as PatchedMetadataEditor;
 				old.call(that, data);
@@ -52,7 +51,7 @@ export const patchMetadataEditor = (plugin: BetterProperties) => {
 		},
 	});
 
-	plugin.register(removePatch);
+	plugin.registerRuntime(removePatch);
 };
 
 export interface PatchedMetadataEditor extends MetadataEditor {
@@ -199,7 +198,7 @@ const toggleShowHidden = (that: PatchedMetadataEditor) => {
 	return that;
 };
 
-const createLabelWidthResizerEl = (that: PatchedMetadataEditor) => {
+const createLabelWidthResizerEl = (that: PatchedMetadataEditor, plugin: BetterProperties) => {
 	if (that.labelWidthResizerEl) {
 		that.labelWidthResizerEl.remove();
 	}
@@ -212,6 +211,7 @@ const createLabelWidthResizerEl = (that: PatchedMetadataEditor) => {
 	labelWidthResizerEl.draggable = true;
 
 	let initialX = 0;
+	let removeOverlay = () => { };
 
 	labelWidthResizerEl.addEventListener("dragstart", (e) => {
 		labelWidthResizerEl.setAttribute("data-is-dragging", "true");
@@ -230,9 +230,17 @@ const createLabelWidthResizerEl = (that: PatchedMetadataEditor) => {
 			// e.dataTransfer && (e.dataTransfer.dropEffect = "copy");
 		});
 
-		window.setTimeout(() => {
-			document.body.appendChild(overlayEl);
-		}, 0);
+		removeOverlay();
+		let finished = false;
+		const cleanup = () => {
+			finished = true;
+			overlayEl.remove();
+			labelWidthResizerEl.removeAttribute("data-is-dragging");
+			containerEl.style.removeProperty("--metadata-label-width");
+		};
+		const forget = plugin.registerRuntime(cleanup);
+		removeOverlay = () => { forget(); cleanup(); };
+		plugin.defer(() => { if (!finished) containerEl.doc.body.appendChild(overlayEl); });
 	});
 
 	const getInitialWidth = () =>
@@ -259,12 +267,12 @@ const createLabelWidthResizerEl = (that: PatchedMetadataEditor) => {
 	labelWidthResizerEl.addEventListener("drag", onDrag);
 
 	labelWidthResizerEl.addEventListener("dragend", () => {
-		labelWidthResizerEl.removeAttribute("data-is-dragging");
 		const labelWidth = containerEl
 			.querySelector(".metadata-property-key")
 			?.getBoundingClientRect()?.width;
+		removeOverlay();
 		if (labelWidth === undefined) return;
-		document.body.setCssProps({
+		containerEl.doc.body.setCssProps({
 			"--metadata-label-width": labelWidth + "px",
 		});
 
@@ -274,11 +282,11 @@ const createLabelWidthResizerEl = (that: PatchedMetadataEditor) => {
 		);
 
 		containerEl.setCssProps({ "--metadata-label-width": "" });
-		document.getElementById("better-properties-drag-overlay")?.remove();
+		containerEl.doc.getElementById("better-properties-drag-overlay")?.remove();
 	});
 
 	labelWidthResizerEl.addEventListener("dblclick", () => {
-		document.body.setCssProps({
+		containerEl.doc.body.setCssProps({
 			"--metadata-label-width": "",
 		});
 		app.workspace.trigger(

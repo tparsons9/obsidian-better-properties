@@ -53,7 +53,7 @@ export class PropertySuggest extends InputSuggest<Value> {
 		super.renderSuggestion.call(this, value, el);
 
 		const iconEl = el.querySelector(".suggestion-flair");
-		if (!(iconEl instanceof HTMLElement)) return;
+		if (!(iconEl?.instanceOf(HTMLElement))) return;
 		setIcon(iconEl, value.icon);
 	}
 }

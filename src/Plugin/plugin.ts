@@ -1,10 +1,13 @@
-import { Modal, ButtonComponent, Plugin, MarkdownView } from "obsidian";
+import { asyncHandler } from "~/lib/async";
+import { CleanupStore } from "~/core/lifecycle";
+import { SaveQueue } from "~/core/persistence";
+import { Modal, ButtonComponent, Plugin, MarkdownView, Notice } from "obsidian";
 import {
 	BetterPropertiesSettings,
 	betterPropertiesSettingsSchema,
-	BetterPropertiesSettingsTab,
 	getDefaultSettings,
-} from "./settings";
+} from "./schema";
+import { BetterPropertiesSettingsTab } from "./settings";
 import {
 	registerCustomPropertyTypeWidgets,
 	sortAndFilterRegisteredTypeWidgets,
@@ -28,19 +31,27 @@ import { patchMetadataTypeManager } from "~/MetadataTypeManager/patchMetadataTyp
 export class BetterProperties extends Plugin {
 	settings: BetterPropertiesSettings = getDefaultSettings();
 	disabledTypeWidgets: Record<string, PropertyWidget> = {};
+	ownedTypeWidgets = new Map<string, { widget: PropertyWidget; previous?: PropertyWidget }>();
+	private runtime = new CleanupStore();
+	private active = false;
+	private settingsValid = true;
+	private saves = new SaveQueue<BetterPropertiesSettings>((settings) => this.saveData(settings));
 	codePrefix = "bpjs:"; // TODO make configurable
 
 	bpjsInstances: Set<BpJsApi> = new Set();
 
 	async onload(): Promise<void> {
+		this.active = true;
 		await this.loadSettings();
+		if (!this.active) return;
 		this.addSettingTab(new BetterPropertiesSettingsTab(this));
 		patchMetadataTypeManager(this);
 		registerCustomPropertyTypeWidgets(this);
 		wrapAllPropertyTypeWidgets(this);
 		sortAndFilterRegisteredTypeWidgets(this);
 		this.setupCommands();
-		this.app.workspace.onLayoutReady(async () => {
+		this.app.workspace.onLayoutReady(() => {
+			if (!this.active) return;
 			customizePropertyEditorMenu(this);
 			patchMetadataEditor(this);
 			patchMetadataCache(this);
@@ -59,7 +70,7 @@ export class BetterProperties extends Plugin {
 
 	rebuildLeaves(): void {
 		this.app.workspace.iterateAllLeaves((leaf) => {
-			leaf.rebuildView && leaf.rebuildView();
+			asyncHandler(() => leaf.rebuildView && leaf.rebuildView())();
 		});
 	}
 
@@ -68,7 +79,7 @@ export class BetterProperties extends Plugin {
 			if (!(leaf.view instanceof MarkdownView)) return;
 			const me = leaf.view.metadataEditor;
 			if (!me) return;
-			leaf.rebuildView();
+			asyncHandler(() => leaf.rebuildView())();
 		});
 	}
 
@@ -119,33 +130,62 @@ export class BetterProperties extends Plugin {
 		});
 	}
 
+	registerRuntime(cleanup: () => void): () => void {
+		return this.runtime.add(cleanup);
+	}
+
+	defer(callback: () => void): void {
+		const timer = window.setTimeout(() => {
+			forget();
+			if (this.active) callback();
+		}, 0);
+		const forget = this.registerRuntime(() => window.clearTimeout(timer));
+	}
+
 	handlePropertyLabelWidth(): void {
-		this.updateSettings((prev) => ({
-			...prev,
-			defaultLabelWidth: document.body.getCssPropertyValue(
-				"---metadata-label-width"
-			),
-		}));
-		const updateDomMetadataLabelWidth = (width: number | undefined) => {
-			document.body.setCssProps({
-				"--metadata-label-width":
-					width === undefined ? this.settings.defaultLabelWidth : width + "px",
+		const bodies = new Map<HTMLElement, { value: string; priority: string; defaultWidth: string }>();
+		const updateBody = (body: HTMLElement) => {
+			if (!bodies.has(body)) bodies.set(body, {
+				value: body.style.getPropertyValue("--metadata-label-width"),
+				priority: body.style.getPropertyPriority("--metadata-label-width"),
+				defaultWidth: body.getCssPropertyValue("--metadata-label-width") || "9em",
 			});
+			const width = this.settings.propertyLabelWidth;
+			body.setCssProps({ "--metadata-label-width": width === undefined ? bodies.get(body)!.defaultWidth : `${width}px` });
 		};
-		this.app.workspace.on(
-			"better-properties:property-label-width-change",
-			(propertyLabelWidth) => {
-				updateDomMetadataLabelWidth(propertyLabelWidth);
-				this.updateSettings((prev) => ({ ...prev, propertyLabelWidth }));
+		updateBody(activeDocument.body);
+		this.app.workspace.iterateAllLeaves((leaf) => updateBody(leaf.view.containerEl.doc.body));
+		const opened = this.app.workspace.on("window-open", (_window, browserWindow) => updateBody(browserWindow.document.body));
+		const changed = this.app.workspace.on("better-properties:property-label-width-change", (width) => {
+			this.settings.propertyLabelWidth = width;
+			for (const body of bodies.keys()) updateBody(body);
+			this.persistSettings();
+		});
+		this.registerRuntime(() => {
+			this.app.workspace.offref(opened);
+			this.app.workspace.offref(changed);
+			for (const [body, previous] of bodies) {
+				if (previous.value) body.style.setProperty("--metadata-label-width", previous.value, previous.priority);
+				else body.style.removeProperty("--metadata-label-width");
 			}
-		);
-		updateDomMetadataLabelWidth(this.settings.propertyLabelWidth);
+			bodies.clear();
+		});
 	}
 
 	onunload(): void {
+		this.active = false;
+		try { this.runtime.dispose(); } catch (error) { console.error(error); }
 		unregisterCustomPropertyTypeWidgets(this);
-		this.bpjsInstances.forEach((bpjs) => {
-			bpjs.component.unload();
+		this.bpjsInstances.forEach((bpjs) => bpjs.component.unload());
+		this.bpjsInstances.clear();
+		this.refreshPropertyEditors();
+	}
+
+	persistSettings(): void {
+		if (!this.settingsValid) return;
+		void this.saveSettings().catch((error: unknown) => {
+			console.error(error);
+			new Notice(`Better Properties: Could not save settings: ${String(error)}`);
 		});
 	}
 
@@ -154,10 +194,11 @@ export class BetterProperties extends Plugin {
 	}
 
 	async loadSettings() {
-		const loaded = await this.loadData();
+		const loaded: unknown = await this.loadData();
 
 		// no settings yet, use default
-		if (!loaded) {
+		if (loaded === null || loaded === undefined) {
+			this.settingsValid = true;
 			this.settings = getDefaultSettings();
 			return;
 		}
@@ -165,11 +206,13 @@ export class BetterProperties extends Plugin {
 		const parsed = v.safeParse(betterPropertiesSettingsSchema, loaded);
 		// settings are valid, so use them
 		if (parsed.success) {
+			this.settingsValid = true;
 			this.settings = parsed.output;
 			return;
 		}
 
-		// settings invalid, warn user and offer options
+		this.settingsValid = false;
+		// Preserve invalid data until the user explicitly resets it.
 		const msg0 = "Better Properties: Invalid plugin settings detected!";
 		const msg1 =
 			"This likely happened because you modified the plugin's settings.json file directly. If not, please open an issue on the plugin's github repository";
@@ -189,6 +232,9 @@ export class BetterProperties extends Plugin {
 			.setButtonText("Reset settings")
 			.onClick(() => {
 				this.settings = getDefaultSettings();
+				this.settingsValid = true;
+				this.persistSettings();
+				modal.close();
 			});
 
 		modal.open();
@@ -196,7 +242,8 @@ export class BetterProperties extends Plugin {
 	}
 
 	async saveSettings(): Promise<void> {
-		await this.saveData(this.settings);
+		if (!this.settingsValid) throw new Error("Settings must be reset before saving invalid data.");
+		await this.saves.save(this.settings);
 	}
 
 	async updateSettings(

@@ -1,4 +1,5 @@
-import { Setting, moment } from "obsidian";
+import { moment } from "~/lib/obsidian";
+import { Setting } from "obsidian";
 import { CustomPropertyType } from "../types";
 import { text } from "~/i18next";
 import { obsidianText } from "~/i18next/obsidian";

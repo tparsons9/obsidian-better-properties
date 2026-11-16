@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import {
 	DropdownComponent,
 	ExtraButtonComponent,
@@ -52,13 +53,13 @@ class SelectTypeComponent extends PropertyWidgetComponentNew<"select", string> {
 		this.component = settings?.useDefaultStyle
 			? new DropdownComponent(this.selectContainerEl)
 			: new SelectComponent(
-					plugin,
-					this.selectContainerEl,
-					ctx.key,
-					!!settings?.manualAllowCreate && settings.optionsType !== "dynamic",
-					ctx.sourcePath
-			  );
-		this.initOptions();
+				plugin,
+				this.selectContainerEl,
+				ctx.key,
+				!!settings?.manualAllowCreate && settings.optionsType !== "dynamic",
+				ctx.sourcePath
+			);
+		asyncHandler(() => this.initOptions())();
 	}
 
 	getValue(): string {
@@ -105,17 +106,17 @@ class SelectTypeComponent extends PropertyWidgetComponentNew<"select", string> {
 			settings.optionsType === "manual"
 				? settings.manualOptions ?? []
 				: await getDynamicOptions({
-						plugin: this.plugin,
-						ctx: this.ctx,
-						dynamicEmptyLabel,
-						dynamicOptionsType,
-						fileJsOptionsPath,
-						folderOptionsExcludeFolderNote,
-						folderOptionsPaths,
-						inlineJsOptionsCode,
-						tagOptionsIncludeNested,
-						tagOptionsTags,
-				  });
+					plugin: this.plugin,
+					ctx: this.ctx,
+					dynamicEmptyLabel,
+					dynamicOptionsType,
+					fileJsOptionsPath,
+					folderOptionsExcludeFolderNote,
+					folderOptionsPaths,
+					inlineJsOptionsCode,
+					tagOptionsIncludeNested,
+					tagOptionsTags,
+				});
 		if (this.component instanceof SelectComponent) {
 			this.component.selectEl.classList.remove("better-properties-mod-loader");
 			this.component.selectEl.empty();
@@ -238,11 +239,11 @@ export class SelectComponent extends ComboboxComponent<Option> {
 			.setTooltip(tooltip)
 			.setIcon("link" satisfies Icon);
 		this.openLinkedFile = (e) => {
-			this.plugin.app.workspace.openLinkText(
+			asyncHandler(() => this.plugin.app.workspace.openLinkText(
 				value.slice(2, -2),
 				this.sourcePath,
 				Keymap.isModEvent(e)
-			);
+			))();
 		};
 		cmp.extraSettingsEl.addEventListener("click", (e) => {
 			this.openLinkedFile?.(e);
@@ -317,7 +318,7 @@ export class SelectComponent extends ComboboxComponent<Option> {
 						this.options.push({
 							value: newOption,
 						});
-						this.plugin.saveSettings();
+						asyncHandler(() => this.plugin.saveSettings())();
 						menu.close();
 						this.commitValue();
 					});

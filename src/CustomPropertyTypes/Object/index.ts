@@ -1,9 +1,8 @@
 import { text } from "~/i18next";
-import { CustomPropertyType, PropertyTypeSchema } from "../types";
+import { CustomPropertyType } from "../types";
 import { registerListeners } from "./registerListeners";
 import { renderSettings } from "./renderSettings";
 import { renderWidget } from "./renderWidget";
-import * as v from "valibot";
 
 export const objectPropertyType: CustomPropertyType = {
 	type: "object",
@@ -18,8 +17,4 @@ export const objectPropertyType: CustomPropertyType = {
 	renderWidget,
 };
 
-export const objectSettingsSchema = v.optional(
-	v.object({
-		hideAddButton: v.optional(v.boolean()),
-	})
-) satisfies PropertyTypeSchema;
+export { objectSettingsSchema } from "./schema";

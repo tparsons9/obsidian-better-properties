@@ -1,13 +1,9 @@
 import {
-	Events,
 	Workspace as BaseWorkspace,
 	MetadataCache as BaseMetadataCache,
 } from "obsidian";
 import {
 	MetadataTypeManager as BaseMetadataTypeManager,
-	MetadataEditor as BaseMetadataEditor,
-	PropertyEntryData,
-	PropertyWidget,
 } from "obsidian-typings";
 
 declare module "obsidian" {
@@ -39,7 +35,7 @@ declare module "obsidian" {
 
 	interface PropertyValueComponent {
 		containerEl: HTMLElement;
-		private focus(_: unknown): void;
+		focus(): void;
 		onFocus(): void;
 	}
 

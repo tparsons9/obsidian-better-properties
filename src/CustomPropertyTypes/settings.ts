@@ -1,3 +1,5 @@
+import { stringValue } from "~/core/properties";
+import { asyncHandler } from "~/lib/async";
 import { App, Notice, Setting, setTooltip, TextAreaComponent } from "obsidian";
 import { VerticalTabModal } from "~/classes/VerticalTabModal";
 import BetterProperties from "~/main";
@@ -20,7 +22,7 @@ import { IconSuggest } from "~/classes/InputSuggest/IconSuggest";
 import { PropertyWidget } from "obsidian-typings";
 import { text } from "~/i18next";
 import { obsidianText } from "~/i18next/obsidian";
-import { MultiselectComponent } from "~/classes/MultiSelect";
+import { createMultiselectComponent, type MultiselectComponent } from "~/classes/MultiSelect";
 import * as v from "valibot";
 import { InputSuggest, Suggestion } from "~/classes/InputSuggest";
 import { ConfirmationModal } from "~/classes/ConfirmationModal";
@@ -45,59 +47,40 @@ export class PropertySettingsModal extends VerticalTabModal {
 			group.titleEl.classList.add("better-properties-vertical-tab-modal-title");
 			setTooltip(group.titleEl, this.property);
 		});
+		const persist = () => this.plugin.persistSettings();
+		for (const event of ["input", "change", "click"]) this.contentEl.addEventListener(event, persist);
 		this.addGeneralTabGroup();
 		this.addTypesTabGroup();
 	}
 
 	onClose(): void {
 		super.onClose.call(this);
+		this.plugin.persistSettings();
 		refreshPropertyEditor(this.plugin, this.property);
 	}
 
 	addGeneralTabGroup() {
 		const { propertyType } = this;
-
-		this.addTabGroup((group) =>
-			group
-				.setTitle(text("propertySettings.generalTabGroupName"))
-				.addTab((tab) =>
-					tab
-						.setTitle(text("propertySettings.generalSettingsTab.name"))
-						.onSelect(() => renderGeneralSettings(this))
-						.then((tab) => {
-							if (
-								withoutTypeWidgetPrefix(propertyType) in
-								getCustomPropertyTypesRecord()
-							)
-								return;
-							// select general tab because current type is unsupported
-							tab.select();
-						})
-				)
-				.addTab((tab) => handleActionsTab({ modal: this, tab }))
-		);
+		this.addTabGroup((group) => {
+			group.setTitle(text("propertySettings.generalTabGroupName"));
+			group.addTab((tab) => {
+				tab.setTitle(text("propertySettings.generalSettingsTab.name"))
+					.onSelect(() => renderGeneralSettings(this));
+				if (!(withoutTypeWidgetPrefix(propertyType) in getCustomPropertyTypesRecord())) tab.select();
+			});
+			group.addTab((tab) => { handleActionsTab({ modal: this, tab }); });
+		});
 	}
 
 	addTypesTabGroup() {
-		this.addTabGroup((group) =>
-			group
-				.setTitle(text("propertySettings.typesTabGroup.name"))
-				.then((group) => {
-					Object.values(
-						this.plugin.app.metadataTypeManager.registeredTypeWidgets
-					)
-						.toSorted((a, b) => a.name().localeCompare(b.name()))
-						.forEach((widget) => {
-							group.addTab((tab) =>
-								handlePropertyTypeTab({
-									widget,
-									tab,
-									modal: this,
-								})
-							);
-						});
-				})
-		);
+		this.addTabGroup((group) => {
+			group.setTitle(text("propertySettings.typesTabGroup.name"));
+			Object.values(this.plugin.app.metadataTypeManager.registeredTypeWidgets)
+				.toSorted((a, b) => a.name().localeCompare(b.name()))
+				.forEach((widget) => {
+					group.addTab((tab) => { handlePropertyTypeTab({ widget, tab, modal: this }); });
+				});
+		});
 	}
 }
 
@@ -192,7 +175,7 @@ const renderGeneralSettings = (modal: PropertySettingsModal) => {
 			text("propertySettings.generalSettingsTab.suggestionsSetting.desc")
 		)
 		.then((s) => {
-			const multiselect = new MultiselectComponent(s);
+			const multiselect = createMultiselectComponent(plugin.app, s);
 
 			multiselect
 				.setValues(settings.suggestions ?? [])
@@ -251,7 +234,7 @@ class PropertyValueSuggest extends InputSuggest<string> {
 					this.property,
 					metadata.frontmatter
 				);
-				const str = value?.toString();
+				const str = value === undefined || value === null ? "" : stringValue(value);
 				if (!str) return;
 				set.add(str);
 			},
@@ -289,7 +272,7 @@ const handleActionsTab = ({
 						property,
 					});
 					const str = JSON.stringify(settings, null, 2);
-					navigator.clipboard.writeText(str);
+					asyncHandler(() => navigator.clipboard.writeText(str))();
 					new Notice(
 						text(
 							"propertySettings.generalActionsTab.exportSetting.copySuccessNotice"
@@ -328,7 +311,7 @@ const showImportModal = (modal: PropertySettingsModal) => {
 			textArea.inputEl.classList.add("better-properties-mod-w-full");
 			textArea.inputEl.setAttribute("rows", "7");
 			textArea.onChange(async (val) => {
-				const jsonResult = await tryCatch(() => JSON.parse(val));
+				const jsonResult = await tryCatch((): unknown => JSON.parse(val));
 				if (!jsonResult.success) {
 					data = undefined;
 					validityEl.setAttribute("data-is-valid", "false");
@@ -361,7 +344,7 @@ const showImportModal = (modal: PropertySettingsModal) => {
 	});
 
 	confirmationModal
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn
 				.setButtonText(text("common.import"))
 				.setWarning()
@@ -379,12 +362,12 @@ const showImportModal = (modal: PropertySettingsModal) => {
 							"propertySettings.generalActionsTab.importSetting.modalImportSuccess"
 						)
 					);
-				})
+				}))
 		)
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn
 				.setButtonText(obsidianText("dialogue.button-cancel"))
-				.onClick(() => confirmationModal.close())
+				.onClick(() => confirmationModal.close()))
 		);
 
 	confirmationModal.open();
@@ -404,25 +387,25 @@ const showResetModal = (modal: PropertySettingsModal) => {
 				.setLabel(text("common.dontAskAgain"))
 				.setValue(false)
 				.onChange((v) => {
-					modal.plugin.updateSettings((prev) => ({
+					asyncHandler(() => modal.plugin.updateSettings((prev) => ({
 						...prev,
 						confirmPropertySettingsReset: v,
-					}));
+					})))();
 				})
 		)
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn
 				.setButtonText(text("common.reset"))
 				.setWarning()
 				.onClick(() => {
 					deletePropertySettings({ plugin, property });
 					confirmationModal.close();
-				})
+				}))
 		)
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn
 				.setButtonText(obsidianText("dialogue.button-cancel"))
-				.onClick(() => confirmationModal.close())
+				.onClick(() => confirmationModal.close()))
 		);
 	confirmationModal.open();
 };
@@ -439,7 +422,7 @@ const handlePropertyTypeTab = ({
 	const { tabContentEl, plugin, property, propertyType } = modal;
 	const customPropertyType: CustomPropertyType | undefined =
 		getCustomPropertyTypesRecord()[
-			withoutTypeWidgetPrefix(widget.type) as CustomTypeKey
+		withoutTypeWidgetPrefix(widget.type) as CustomTypeKey
 		];
 	tab
 		.setTitle(widget.name())

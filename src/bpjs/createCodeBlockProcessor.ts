@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import {
 	MarkdownPostProcessorContext,
 	MarkdownRenderChild,
@@ -22,14 +23,23 @@ export const createCodeBlockProcessor = (
 		mdrc.addChild(component);
 		plugin.addChild(component);
 		const api = new BpJsApi(plugin, el, ctx.sourcePath, component, source);
-		api.run(source);
+		asyncHandler(() => api.run(source))();
 		// api.monitorSubsribedPaths();
 	};
 
 	const BPJS = "bpjs";
 
-	window.CodeMirror.defineMode(BPJS, (config) =>
-		window.CodeMirror.getMode(config, "javascript")
-	);
+	const cm = activeWindow.CodeMirror as typeof activeWindow.CodeMirror & {
+		getMode(config: Record<string, unknown>, name: string): unknown;
+		modes?: Record<string, unknown>;
+	};
+	const previous = cm.modes?.[BPJS];
+	cm.defineMode(BPJS, (config: Record<string, unknown>) => cm.getMode(config, "javascript"));
+	const owned = cm.modes?.[BPJS];
+	plugin.registerRuntime(() => {
+		if (!cm.modes || cm.modes[BPJS] !== owned) return;
+		if (previous === undefined) delete cm.modes[BPJS];
+		else cm.modes[BPJS] = previous;
+	});
 	return [BPJS, cb];
 };

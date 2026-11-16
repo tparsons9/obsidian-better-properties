@@ -2,12 +2,10 @@ import { text } from "~/i18next";
 import {
 	CustomPropertyType,
 	CustomTypeKey,
-	PropertyTypeSchema,
 } from "../types";
 import { registerListeners } from "./registerListeners";
 import { renderSettings } from "./renderSettings";
 import { renderWidget } from "./renderWidget";
-import * as v from "valibot";
 
 export const typeKey = "slider" satisfies CustomTypeKey;
 
@@ -21,11 +19,4 @@ export const sliderPropertyType: CustomPropertyType = {
 	renderWidget,
 };
 
-export const sliderSettingsSchema = v.optional(
-	v.object({
-		min: v.optional(v.number()),
-		max: v.optional(v.number()),
-		step: v.optional(v.number()),
-		hideLimits: v.optional(v.boolean()),
-	})
-) satisfies PropertyTypeSchema;
+export { sliderSettingsSchema } from "./schema";

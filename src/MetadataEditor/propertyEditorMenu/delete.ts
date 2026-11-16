@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { ConfirmationModal } from "~/classes/ConfirmationModal";
 import { text } from "~/i18next";
 import { obsidianText } from "~/i18next/obsidian";
@@ -20,14 +21,14 @@ export const openDeleteModal = ({
 			checkbox
 				.setValue(false)
 				.setLabel(text("common.dontAskAgain"))
-				.onChange(async (b) => {
+				.onChange(asyncHandler(async (b) => {
 					await plugin.updateSettings((s) => {
 						s.confirmPropertyDelete = b;
 						return s;
 					});
-				});
+				}));
 		})
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn
 				.setWarning()
 				.setButtonText(obsidianText("interface.delete-action-short-name"))
@@ -37,12 +38,12 @@ export const openDeleteModal = ({
 						property,
 					});
 					modal.close();
-				})
+				}))
 		)
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn.setButtonText(obsidianText("dialogue.button-cancel")).onClick(() => {
 				modal.close();
-			})
+			}))
 		);
 	modal.open();
 	return;

@@ -1,19 +1,51 @@
 # Better Properties
 
-![GitHub Release](https://img.shields.io/github/v/release/unxok/obsidian-better-properties)
-![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads/unxok/obsidian-better-properties/latest/total)
- ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/unxok/obsidian-better-properties/total?label=total%20downloads)
- ![GitHub issue custom search in repo](https://img.shields.io/github/issues-search/unxok/obsidian-better-properties?query=is%3Aissue%20state%3Aopen%20label%3A%F0%9F%90%9Etype%2Fbug%20no%3Amilestone&label=open%20bugs&color=red) ![GitHub issue custom search in repo](https://img.shields.io/github/issues-search/unxok/obsidian-better-properties?query=is%3Aissue%20state%3Aopen%20label%3A%22%E2%9C%A8type%2Ffeature%20request%22%20no%3Amilestone&label=feature%20requests&color=gold)
+Tanner Parsons's maintenance fork of [Unxok's Better Properties](https://github.com/unxok/obsidian-better-properties), an Obsidian plugin that adds property types, per-property settings, nested properties, and `bpjs` scripting.
 
-> [!NOTE]
-> This project has not been abandoned! [See discussion post →](https://github.com/unxok/obsidian-better-properties/discussions/77)
+The plugin keeps the ID `better-properties`, existing settings and frontmatter formats, and the declared minimum Obsidian version of 1.9.14. Desktop and mobile support remain enabled. Historical feature documentation lives in [docs/](docs/) and [README.old.md](README.old.md).
 
-What if Properties in Obsidian were... better?
+## Development
 
-This [Obsidian](https://obsidian.md) plugin adds many different properties-related features, such as new property types and per-property settings.
+Use Node **26.13.1** (`.nvmrc`) and npm **11.20.0**. These are development requirements; the plugin runs inside Obsidian.
 
-For documentation, check out the [Better Properties Docs](https://better-properties.unxok.com) website.
+```sh
+npm ci
+npm run verify
+```
 
-![property menu](/demo-assets/property-menu.png)
+`verify` runs type checking, lint, unit tests with coverage, the production build and bundle check, and release metadata checks. The generated `main.js` ships with `manifest.json` and the maintained root `styles.css`.
 
-![properties](/demo-assets/properties.png)
+To build/watch into a development vault, provide its plugin directory explicitly:
+
+```sh
+npm run build:vault -- /absolute/path/to/test-vault/.obsidian/plugins/better-properties
+npm run dev -- /absolute/path/to/test-vault/.obsidian/plugins/better-properties
+```
+
+`VAULT_PLUGIN` is also supported by opdk. Check its value before relying on it. Do not override plugin-ID mismatch protection with `--force`.
+
+Root `styles.css` is currently handwritten source. With `build.css: false`, CSS-only edits do not trigger the watcher; rerun `npm run build:vault -- <plugin-directory>` to copy them. CSS is still included in releases and checked by the scanner.
+
+## Tests
+
+```sh
+npm test
+node node_modules/electron/install.js
+npm run e2e
+```
+
+Unit tests cover settings compatibility, nested values, property rename/delete, partial write failures, save ordering, and cleanup ownership. Coverage thresholds apply to the explicitly listed schemas and core modules in `vitest.config.mts`: 90% lines/statements/functions and 80% branches. They do not measure the entire UI.
+
+E2E tests launch real Obsidian through opdk with a temporary vault and separate user-data directory. On macOS the fixture uses `/Applications/Obsidian.app/Contents/Resources/app.asar`; set `OBSIDIAN_PATH` for another installation. `OBSIDIAN_VERSION=x.y.z` enforces a particular installed version; the fixture does not download Obsidian versions. Traces, screenshots, and videos are retained on failure in `test-results/`.
+
+The suite covers edits and reload persistence, settings persistence, scripting, plugin unload/reload, popouts, and simulated mobile mode. Simulated mobile testing does not replace testing on a native phone. E2E runs locally on macOS; Linux CI runs the static/unit/build gates.
+
+## Maintenance checks
+
+`npm run scan` produces the raw community-scanner report. CI uploads it as an advisory artifact. It currently reports intentional scripting/CSS imports, legacy settings UI, and stylesheet patterns. See [CONTRIBUTING.md](CONTRIBUTING.md) for the policy and release procedure. A green `verify` is not a claim of a clean community scorecard.
+
+The production build reports esbuild's direct-eval warnings for existing user-authored scripting features. Those warnings remain visible; regression tests exercise scripting after bundling.
+
+## Attribution
+
+Originally authored by Unxok; maintained in this fork by Tanner Parsons. Distributed under the [MIT license](LICENSE).

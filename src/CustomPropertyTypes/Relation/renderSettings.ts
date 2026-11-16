@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { CustomPropertyType } from "../types";
 import { typeKey } from ".";
 import {
@@ -44,10 +45,10 @@ export const renderSettings: CustomPropertyType["renderSettings"] = ({
 		}
 		if (!relatedProperty) return;
 
-		plugin.app.metadataTypeManager.setType(
+		asyncHandler(() => plugin.app.metadataTypeManager.setType(
 			relatedProperty,
 			customPropertyTypePrefix + typeKey
-		);
+		))();
 		updatePropertyTypeSettings({
 			plugin,
 			property: relatedProperty,

@@ -1,40 +1,15 @@
-name: Release Obsidian plugin
-
+name: Release
 on:
   push:
-    tags:
-      - "*"
+    tags: ["*.*.*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Use Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "22.x"
-
-      - name: Build plugin
-        run: |
-          npm install
-          npm run build
-
-      - name: Generate release notes from changelog
-        id: notes
-        run: |
-          node ./getChangelogEntry.mjs > RELEASE_NOTES.md
-          echo "file=RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
-
-      - name: Create release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="${GITHUB_REF#refs/tags/}"
-
-          gh release create "$tag" \
-            --title="$tag" \
-            --notes-file "${{ steps.notes.outputs.file }}" \
-            main.js manifest.json styles.css
+  release:
+    uses: Dimagious/obsidian-plugin-dev-kit/.github/workflows/release.yml@aa82d95aa4fd3e85e8559b5746c7e98631f850dd # v0.4.0
+    with:
+      node-version: "26.13.1"

@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import {
 	Decoration,
 	EditorView,
@@ -36,7 +37,7 @@ class InlineCodeWidget extends WidgetType {
 
 		const code = this.codeText.slice(this.plugin.codePrefix.length);
 		const api = new BpJsApi(this.plugin, undefined, this.file.path, cmp, code);
-		api.run(code);
+		asyncHandler(() => api.run(code))();
 		api.el.classList.add("better-properties-bpjs-code");
 
 		return api.el;

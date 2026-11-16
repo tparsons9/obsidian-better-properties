@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { displayTooltip, TextComponent } from "obsidian";
 import { CustomPropertyType } from "../types";
 import {
@@ -56,27 +57,27 @@ export const renderWidget: CustomPropertyType["renderWidget"] = ({
 		// so it's likely rendered for the first time
 
 		// 0 timeout because without it, it will usually just remove all properties
-		window.setTimeout(() => {
+		plugin.defer(() => {
 			ctx.onChange(title);
-		}, 0);
+		});
 	}
 
-	text.inputEl.addEventListener("blur", doRename);
-	text.inputEl.addEventListener("keydown", async (e) => {
+	text.inputEl.addEventListener("blur", asyncHandler(doRename));
+	text.inputEl.addEventListener("keydown", asyncHandler(async (e) => {
 		if (e.key === "Enter") {
 			await doRename();
 		}
 		if (e.key === "Escape") {
 			text.setValue(title);
 		}
-	});
+	}));
 
 	const cmp = new PropertyWidgetComponent(
 		"title",
 		container,
 		(v) => {
 			text.setValue(v?.toString() ?? "");
-			doRename();
+			asyncHandler(() => doRename())();
 		},
 		() => {
 			text.inputEl.focus();

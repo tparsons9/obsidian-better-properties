@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import BetterProperties from "~/main";
 import { showPropertySettingsModal } from "~/CustomPropertyTypes/settings";
 import { Icon } from "~/lib/types/icons";
@@ -131,7 +132,7 @@ const recreateTypeOptionsSubmenu = ({
 		submenu.addItem((item) => {
 			const isBuiltin = !widget.type.startsWith(customPropertyTypePrefix);
 			item.onClick(() => {
-				metadataTypeManager.setType(property, widget.type);
+				asyncHandler(() => metadataTypeManager.setType(property, widget.type))();
 			});
 			item.setTitle(widget.name()).setIcon(widget.icon);
 

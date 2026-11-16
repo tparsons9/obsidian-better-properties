@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import {
 	MarkdownPostProcessor,
 	MarkdownRenderChild,
@@ -11,7 +12,7 @@ export const createPostProcessor = (
 ): MarkdownPostProcessor => {
 	const processor: MarkdownPostProcessor = (el, ctx) => {
 		if (el.tagName.toLowerCase() !== "code") {
-			el.findAll("code").forEach((codeEl) => processor(codeEl, ctx));
+			el.findAll("code").forEach(asyncHandler((codeEl) => processor(codeEl, ctx)));
 			return;
 		}
 
@@ -31,7 +32,7 @@ export const createPostProcessor = (
 		mdrc.addChild(component);
 		plugin.addChild(component);
 		const api = new BpJsApi(plugin, spanEl, ctx.sourcePath, component, code);
-		api.run(code);
+		asyncHandler(() => api.run(code))();
 	};
 	return processor;
 };

@@ -1,33 +1,12 @@
-import { Prettify } from "~/lib/utils";
-import * as v from "valibot";
-import { propertySettingsSchema } from "~/CustomPropertyTypes";
 import { PluginSettingTab, Setting } from "obsidian";
 import { BetterProperties } from "./plugin";
 import { Icon } from "~/lib/types/icons";
 import { obsidianText } from "~/i18next/obsidian";
-import { MultiselectComponent } from "~/classes/MultiSelect";
+import { createMultiselectComponent } from "~/classes/MultiSelect";
 import { PropertyTypeSuggest } from "~/classes/InputSuggest/PropertyTypeSuggest";
 import { sortAndFilterRegisteredTypeWidgets } from "~/CustomPropertyTypes/register";
 
-export const betterPropertiesSettingsSchema = v.object({
-	propertySettings: v.optional(
-		v.record(v.string(), propertySettingsSchema),
-		{}
-	),
-	confirmPropertySettingsReset: v.optional(v.boolean(), true),
-	confirmPropertyDelete: v.optional(v.boolean(), true),
-	propertyLabelWidth: v.optional(v.number(), undefined),
-	defaultLabelWidth: v.optional(v.string(), "9em"), // not UI facing
-	hiddenPropertyTypes: v.optional(v.array(v.string()), [] satisfies string[]),
-});
-
-export type BetterPropertiesSettings = Prettify<
-	v.InferOutput<typeof betterPropertiesSettingsSchema>
->;
-
-export const getDefaultSettings = (): BetterPropertiesSettings =>
-	v.getDefaults(betterPropertiesSettingsSchema);
-
+// eslint-disable-next-line obsidianmd/settings-tab/prefer-setting-definitions -- Keep the imperative UI compatible with Obsidian 1.9.14; declarative settings require 1.13.
 export class BetterPropertiesSettingsTab extends PluginSettingTab {
 	constructor(public plugin: BetterProperties) {
 		super(plugin.app, plugin);
@@ -74,11 +53,12 @@ export class BetterPropertiesSettingsTab extends PluginSettingTab {
 			.setName("Hidden property types")
 			.setDesc("The following types will be disabled.")
 			.then((s) => {
-				const cmp = new MultiselectComponent(s);
+				const cmp = createMultiselectComponent(plugin.app, s);
 				cmp
 					.setValues(settings.hiddenPropertyTypes ?? [])
 					.onChange((arr) => {
 						settings.hiddenPropertyTypes = [...arr];
+						plugin.persistSettings();
 					})
 					.addSuggest((inputEl) => {
 						return new PropertyTypeSuggest(plugin.app, inputEl)
@@ -104,6 +84,7 @@ export class BetterPropertiesSettingsTab extends PluginSettingTab {
 					.setValue(settings.confirmPropertySettingsReset ?? true)
 					.onChange((b) => {
 						settings.confirmPropertySettingsReset = b;
+						plugin.persistSettings();
 					});
 			});
 
@@ -113,6 +94,7 @@ export class BetterPropertiesSettingsTab extends PluginSettingTab {
 			.addToggle((cmp) => {
 				cmp.setValue(settings.confirmPropertyDelete ?? true).onChange((b) => {
 					settings.confirmPropertyDelete = b;
+					plugin.persistSettings();
 				});
 			});
 	}
@@ -120,10 +102,12 @@ export class BetterPropertiesSettingsTab extends PluginSettingTab {
 	hide(): void {
 		super.hide.call(this);
 		// TODO settings won't save it app is closed while the tab is still displayed. Might be better to just do a debounce to save after every change
-		this.plugin.saveSettings();
+		this.plugin.persistSettings();
 
 		const { plugin } = this;
 		sortAndFilterRegisteredTypeWidgets(plugin);
 		plugin.refreshPropertyEditors();
 	}
 }
+
+export { betterPropertiesSettingsSchema, getDefaultSettings, type BetterPropertiesSettings } from "./schema";

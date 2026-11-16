@@ -1,4 +1,5 @@
-import { moment, Setting } from "obsidian";
+import { moment } from "~/lib/obsidian";
+import { Setting } from "obsidian";
 import { CustomPropertyType } from "../types";
 import { text } from "~/i18next";
 import { typeKey } from ".";
@@ -43,7 +44,7 @@ export const renderSettings: CustomPropertyType["renderSettings"] = ({
 				});
 		});
 
-	let renderFormatPreview = () => {};
+	let renderFormatPreview = () => { };
 	new Setting(tabContentEl)
 		.setName(text("customPropertyTypes.datecustom.settings.format.title"))
 		.setDesc(

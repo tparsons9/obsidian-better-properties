@@ -7,7 +7,7 @@ import BetterProperties from "~/main";
 export const patchMetadataCache = (plugin: BetterProperties) => {
 	const removePatch = around(plugin.app.metadataCache, {
 		getFrontmatterPropertyValuesForKey: (old) =>
-			dedupe(monkeyAroundKey, old, function (property) {
+			dedupe(monkeyAroundKey, old, function(property) {
 				// @ts-expect-error
 				const that = this as MetadataCache;
 				const { suggestions } = getPropertyTypeSettings({
@@ -19,5 +19,5 @@ export const patchMetadataCache = (plugin: BetterProperties) => {
 			}),
 	});
 
-	plugin.register(removePatch);
+	plugin.registerRuntime(removePatch);
 };

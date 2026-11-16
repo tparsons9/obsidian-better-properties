@@ -1,3 +1,7 @@
+import { stringValue } from "~/core/properties";
+import { asyncHandler } from "~/lib/async";
+import { isRecord } from "~/core/properties";
+import * as obsidianApi from "obsidian";
 import {
 	Component,
 	TFile,
@@ -21,11 +25,11 @@ export const setupBpJsListeners = (plugin: BetterProperties) => {
 		bpjs.empty();
 		bpjs.component.unload();
 		bpjs.component.load();
-		bpjs.run(bpjs.code);
+		asyncHandler(() => bpjs.run(bpjs.code))();
 	};
 	const reloadAll = debounce(
 		(file: TFile | null) => {
-			plugin.bpjsInstances.forEach((bpjs) => reload(bpjs, file));
+			[...plugin.bpjsInstances].forEach((bpjs) => reload(bpjs, file));
 		},
 		150,
 		true
@@ -78,8 +82,9 @@ export class BpJsApi {
 	) {
 		this.el = el?.createSpan() ?? createSpan();
 		this.el.classList.add("better-properties-bpjs");
+		// eslint-disable-next-line obsidianmd/no-forbidden-elements -- bpjs imports user-authored CSS scoped to this render component.
 		this.styleEl = this.el.createEl("style");
-		plugin.bpjsInstances.add(this);
+		// Tracking is installed when the script runs.
 	}
 
 	empty(): void {
@@ -96,7 +101,7 @@ export class BpJsApi {
 	}
 
 	public get obsidian() {
-		return require("obsidian");
+		return obsidianApi;
 	}
 
 	public getMetadata({
@@ -104,9 +109,9 @@ export class BpJsApi {
 		subscribe = true,
 	}:
 		| {
-				path?: string;
-				subscribe?: boolean;
-		  }
+			path?: string;
+			subscribe?: boolean;
+		}
 		| undefined = {}): CachedMetadata | null {
 		const { metadataCache, vault } = this.plugin.app;
 		const normalPath = path ? normalizePath(path) : undefined;
@@ -209,9 +214,7 @@ export class BpJsApi {
 			"txt",
 			"md",
 		] as const;
-		const extension = dotSections.reverse()[0].toLowerCase() as
-			| (typeof allowedExtensions)[number]
-			| (string & {});
+		const extension = dotSections.reverse()[0].toLowerCase();
 		if (
 			!allowedExtensions.includes(
 				extension as (typeof allowedExtensions)[number]
@@ -248,6 +251,7 @@ export class BpJsApi {
 				exports?: unknown;
 			} = {};
 
+			// eslint-disable-next-line no-eval -- Executes the existing user-authored scripting API in its original scope.
 			eval(contentCommonJs); // should set module.exports
 			if (module.exports === undefined) {
 				throw new Error(
@@ -261,6 +265,7 @@ export class BpJsApi {
 			if (this.styleEl) {
 				this.styleEl.remove();
 			}
+			// eslint-disable-next-line obsidianmd/no-forbidden-elements -- bpjs imports user-authored CSS scoped to this render component.
 			this.styleEl = this.el.parentElement!.createEl("style");
 			this.styleEl.textContent = content;
 			return;
@@ -289,14 +294,26 @@ export class BpJsApi {
 		}
 	}
 
+	private tracked = false;
+
 	async run(code: string): Promise<void> {
+		if (!this.tracked) {
+			this.tracked = true;
+			this.plugin.bpjsInstances.add(this);
+			this.component.register(() => {
+				this.tracked = false;
+				this.plugin.bpjsInstances.delete(this);
+				this.styleEl?.remove();
+			});
+		}
 		this.el.empty();
 		const { success, data, error } = await tryCatch(async () => {
-			const fn = eval(code);
+			// eslint-disable-next-line no-eval -- Executes the existing user-authored scripting API in its original scope.
+			const fn: unknown = eval(code);
 			if (typeof fn !== "function") {
 				throw new Error(`Expect type "function" but got "${typeof fn}"`);
 			}
-			return await fn(this);
+			return await (fn as (api: BpJsApi) => unknown)(this);
 		});
 		if (!success) {
 			console.error(error);
@@ -304,7 +321,7 @@ export class BpJsApi {
 			return;
 		}
 		if (data === undefined || data === null) return;
-		this.el.textContent = data?.toString();
+		this.el.textContent = stringValue(data);
 	}
 }
 
@@ -326,10 +343,10 @@ class InlinePropertyComponent extends PropertyComponent {
 					`Failed to update property value: File not found at path "${sourcePath}"`
 				);
 			}
-			plugin.app.fileManager.processFrontMatter(file, (fm) => {
-				updateNestedObject(fm, key, v);
+			asyncHandler(() => plugin.app.fileManager.processFrontMatter(file, (fm) => {
+				if (isRecord(fm)) updateNestedObject(fm, key, v);
 				return fm;
-			});
+			}))();
 		});
 	}
 

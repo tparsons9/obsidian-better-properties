@@ -1,37 +1,55 @@
 {
-	"name": "obsidian-better-properties",
-	"version": "1.0.0",
-	"description": "Upgrades Obsidian properties with new types, features, and more!",
-	"main": "main.js",
-	"scripts": {
-		"dev": "vite build --watch --mode=development",
-		"tsc": "tsc",
-		"build": "vite build",
-		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"release": "node getChangelogEntry.mjs && git tag -a %npm_config_tag% -m '%npm_config_tag%' && git push origin %npm_config_tag%"
-	},
-	"keywords": [],
-	"author": "Unxok",
-	"license": "MIT",
-	"devDependencies": {
-		"@codemirror/language": "6.10.3",
-		"@types/luxon": "3.4.2",
-		"@types/node": "22.7.4",
-		"@typescript-eslint/eslint-plugin": "5.29.0",
-		"@typescript-eslint/parser": "5.29.0",
-		"builtin-modules": "3.3.0",
-		"esbuild": "0.25.5",
-		"luxon": "3.5.0",
-		"obsidian": "latest",
-		"obsidian-typings": "obsidian-public-latest",
-		"tslib": "2.7.0",
-		"typescript": "5.8.3",
-		"vite": "6.3.6",
-		"vite-bundle-analyzer": "1.2.1"
-	},
-	"dependencies": {
-		"math-expression-evaluator": "2.0.7",
-		"monkey-around": "3.0.0",
-		"valibot": "1.1.0"
-	}
+  "name": "obsidian-better-properties",
+  "version": "1.0.0",
+  "description": "Upgrades Obsidian properties with new types, features, and more!",
+  "main": "main.js",
+  "scripts": {
+    "dev": "opdk build --vault --watch",
+    "build:vault": "opdk build --vault",
+    "build": "opdk build",
+    "tsc": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json && tsc -p tsconfig.tooling.json",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "e2e": "npm run build && playwright test",
+    "scan": "opdk scan",
+    "release:check": "opdk release check --no-build --no-api",
+    "release:check:full": "opdk release check",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build && npm run release:check"
+  },
+  "keywords": [],
+  "author": "Tanner Parsons",
+  "license": "MIT",
+  "devDependencies": {
+    "@codemirror/language": "6.13.1",
+    "@playwright/test": "1.65.0",
+    "@types/luxon": "3.7.6",
+    "@types/node": "26.6.6",
+    "@vitest/coverage-v8": "5.1.0",
+    "electron": "45.2.3",
+    "eslint": "10.14.0",
+    "luxon": "3.7.2",
+    "obsidian": "1.14.4",
+    "obsidian-plugin-dev-kit": "0.4.0",
+    "obsidian-typings": "5.22.0",
+    "tslib": "2.9.1",
+    "typescript": "6.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.0",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.13"
+  },
+  "dependencies": {
+    "math-expression-evaluator": "2.0.7",
+    "monkey-around": "3.0.0",
+    "valibot": "^1.5.0"
+  },
+  "engines": {
+    "node": ">=26.13.1 <27"
+  },
+  "packageManager": "npm@11.20.0",
+  "overrides": {
+    "eslint": "$eslint"
+  }
 }

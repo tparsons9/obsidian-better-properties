@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { ValueComponent, stringifyYaml, Menu, setIcon } from "obsidian";
 import {
 	TypeInfo,
@@ -19,8 +20,8 @@ export class PropertyComponent extends ValueComponent<unknown> {
 
 	keyWithoutDots: string;
 
-	onChangeCallback: (v: unknown) => void = () => {};
-	onUpdateKeyCallback: (key: string) => void = () => {};
+	onChangeCallback: (v: unknown) => void = () => { };
+	onUpdateKeyCallback: (key: string) => void = () => { };
 
 	constructor(
 		public plugin: BetterProperties,
@@ -94,7 +95,7 @@ export class PropertyComponent extends ValueComponent<unknown> {
 		valueEl.empty();
 		return widget.render(valueEl, this.value, {
 			app: this.plugin.app,
-			blur: () => {},
+			blur: () => { },
 			key: this.key,
 			onChange: (value: unknown) => {
 				this.onChangeCallback(value);
@@ -208,8 +209,8 @@ export class PropertyComponent extends ValueComponent<unknown> {
 
 		el.addEventListener("keydown", (e) => {
 			if (e.key !== "Enter") return;
-			if (!(e.target instanceof HTMLElement)) return;
-			e.target.blur();
+			if (!(e.targetNode?.instanceOf(HTMLElement))) return;
+			e.targetNode?.instanceOf(HTMLElement) && e.targetNode.blur();
 		});
 
 		return el;
@@ -246,21 +247,21 @@ export class PropertyComponent extends ValueComponent<unknown> {
 					oldType: inferred.type,
 				})
 			);
-			modal.addFooterButton((btn) =>
+			modal.addFooterButton(asyncHandler((btn) =>
 				btn
 					.setButtonText(obsidianText("dialogue.button-update"))
 					.setCta()
 					.onClick(() => {
 						modal.close();
 						this.renderWidget(valueEl, expected);
-					})
+					}))
 			);
-			modal.addFooterButton((btn) =>
+			modal.addFooterButton(asyncHandler((btn) =>
 				btn
 					.setButtonText(obsidianText("dialogue.button-cancel"))
 					.onClick(() => {
 						modal.close();
-					})
+					}))
 			);
 			modal.open();
 		});

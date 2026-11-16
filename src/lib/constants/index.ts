@@ -1,7 +1,7 @@
 export const customPropertyTypePrefix = "better-properties:";
 export const monkeyAroundKey = "better-properties_monkey-around-key";
 
-export const invalidFileNameRegex = /[*"\/\\<>:|?]/;
+export const invalidFileNameRegex = /[*"/\\<>:|?]/;
 
 export const TITLE = "title";
 export const MODIFIED = "modified";

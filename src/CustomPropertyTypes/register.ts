@@ -1,3 +1,5 @@
+import { asyncHandler } from "~/lib/async";
+import { isEmptyProperty } from "~/core/properties";
 import BetterProperties from "~/main";
 import {
 	CustomPropertyType,
@@ -66,7 +68,9 @@ export const registerCustomPropertyTypeWidgets = (plugin: BetterProperties) => {
 		};
 		const type = customPropertyTypePrefix + customPropertyType.type;
 		const { icon, name, validate, reservedKeys } = customPropertyType;
-		plugin.app.metadataTypeManager.registeredTypeWidgets[type] = {
+		const registry = plugin.app.metadataTypeManager.registeredTypeWidgets;
+		const previous = registry[type];
+		const widget: PropertyWidget = {
 			type,
 			render,
 			icon,
@@ -75,11 +79,14 @@ export const registerCustomPropertyTypeWidgets = (plugin: BetterProperties) => {
 			reservedKeys,
 		};
 
+		registry[type] = widget;
+		plugin.ownedTypeWidgets.set(type, { widget, previous });
+
 		customPropertyType.registerListeners(plugin);
 
 		if (customPropertyType.reservedKeys?.length) {
 			customPropertyType.reservedKeys.forEach((key) => {
-				plugin.app.metadataTypeManager.setType(key, type);
+				asyncHandler(() => plugin.app.metadataTypeManager.setType(key, type))();
 			});
 		}
 	});
@@ -119,7 +126,7 @@ export const wrapAllPropertyTypeWidgets = (plugin: BetterProperties) => {
 						const iconEl = containerEl.parentElement?.querySelector(
 							".metadata-property-icon"
 						);
-						if (iconEl instanceof HTMLElement) {
+						if (iconEl?.instanceOf(HTMLElement)) {
 							setIcon(iconEl, settings.icon);
 						}
 					}
@@ -131,15 +138,15 @@ export const wrapAllPropertyTypeWidgets = (plugin: BetterProperties) => {
 						);
 					}
 
-					if (settings.defaultValue && !value) {
+					if (settings.defaultValue && isEmptyProperty(value)) {
 						const update = (value: unknown) => {
-							window.setTimeout(() => {
+							plugin.defer(() => {
 								ctx.onChange(value);
 								triggerPropertyTypeChange(
 									plugin.app.metadataTypeManager,
 									ctx.key
 								);
-							}, 0);
+							});
 						};
 
 						if (typeof value !== "object") {
@@ -160,14 +167,14 @@ export const wrapAllPropertyTypeWidgets = (plugin: BetterProperties) => {
 					}
 
 					if (settings.alias) {
-						const keyInputEl: HTMLElement | undefined | null =
+						const keyInputEl: HTMLInputElement | undefined | null =
 							containerEl.parentElement?.querySelector(
 								"input.metadata-property-key-input"
 							);
 						if (keyInputEl) {
-							const existing = containerEl.parentElement?.querySelector(
+							const existing = containerEl.parentElement?.querySelector<HTMLInputElement>(
 								".better-properties-metadata-property-alias-input"
-							) as HTMLInputElement | undefined | null;
+							);
 							if (existing) {
 								existing.classList.remove("better-properties-mod-hidden");
 							}
@@ -197,31 +204,32 @@ export const wrapAllPropertyTypeWidgets = (plugin: BetterProperties) => {
 			},
 		});
 
-		plugin.register(removePatch);
+		plugin.registerRuntime(removePatch);
 	});
 };
 
 export const unregisterCustomPropertyTypeWidgets = (
 	plugin: BetterProperties
 ) => {
-	const { registeredTypeWidgets } = plugin.app.metadataTypeManager;
-	Object.keys(registeredTypeWidgets).forEach((key) => {
-		if (!key.startsWith(customPropertyTypePrefix)) return;
-		delete registeredTypeWidgets[key];
-	});
-
-	//TODO maybe do this in a separate function
-	Object.values(plugin.disabledTypeWidgets).forEach((w) => {
-		registeredTypeWidgets[w.type] = { ...w };
-	});
+	const registry = plugin.app.metadataTypeManager.registeredTypeWidgets;
+	for (const [key, widget] of Object.entries(plugin.disabledTypeWidgets)) {
+		if (registry[key] === undefined && !plugin.ownedTypeWidgets.has(key)) registry[key] = widget;
+	}
+	for (const [key, { widget, previous }] of plugin.ownedTypeWidgets) {
+		if (registry[key] !== widget && registry[key] !== undefined) continue;
+		if (previous) registry[key] = previous;
+		else delete registry[key];
+	}
+	plugin.ownedTypeWidgets.clear();
+	plugin.disabledTypeWidgets = {};
 };
 
 export const sortAndFilterRegisteredTypeWidgets = (
 	plugin: BetterProperties
 ) => {
 	const registered = {
-		...plugin.app.metadataTypeManager.registeredTypeWidgets,
 		...plugin.disabledTypeWidgets,
+		...plugin.app.metadataTypeManager.registeredTypeWidgets,
 	};
 	plugin.disabledTypeWidgets = {};
 	const sortedKeys = Object.keys(registered).toSorted((a, b) => {
@@ -239,7 +247,10 @@ export const sortAndFilterRegisteredTypeWidgets = (
 		return acc;
 	}, {} as MetadataTypeManagerRegisteredTypeWidgetsRecord);
 
-	plugin.app.metadataTypeManager.registeredTypeWidgets = sortedWidgets;
+	// Preserve the registry object for integrations that retain a reference to it.
+	const target = plugin.app.metadataTypeManager.registeredTypeWidgets;
+	for (const key of Object.keys(target)) delete target[key];
+	Object.assign(target, sortedWidgets);
 	plugin.app.metadataTypeManager.trigger("changed");
 };
 

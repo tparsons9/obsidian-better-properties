@@ -28,7 +28,7 @@ class Checkbox {
 	inputEl: HTMLInputElement;
 	labelEl: HTMLLabelElement;
 	labelTextNode: Node;
-	onChangeCallback: (value: boolean) => void = () => {};
+	onChangeCallback: (value: boolean) => void = () => { };
 	constructor(public containerEl: HTMLElement) {
 		this.labelEl = containerEl.createEl("label", { cls: "mod-checkbox" });
 		this.inputEl = this.labelEl.createEl("input", {
@@ -37,7 +37,7 @@ class Checkbox {
 				type: "checkbox",
 			},
 		});
-		this.labelTextNode = document.createTextNode("");
+		this.labelTextNode = activeDocument.createTextNode("");
 		this.labelEl.appendChild(this.labelTextNode);
 		this.inputEl.addEventListener("change", () =>
 			this.onChangeCallback(this.inputEl.checked)

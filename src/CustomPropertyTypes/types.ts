@@ -19,8 +19,8 @@ export type ModifiedPropertyRenderContext = PropertyRenderContext & {
 export type CustomPropertyType = {
 	type: CustomTypeKey;
 	icon: Icon;
-	name(): string;
-	validate(value: unknown): boolean;
+	name(this: void): string;
+	validate(this: void, value: unknown): boolean;
 	renderWidget(args: {
 		plugin: BetterProperties;
 		el: HTMLElement;

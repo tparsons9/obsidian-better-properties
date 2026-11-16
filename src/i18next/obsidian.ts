@@ -2,7 +2,7 @@ import { NestedPaths } from "~/lib/utils";
 
 // This needs to be updated on every new update to Obsidian
 /**
- * 1. In obsidian dev console type: `JSON.stringify(window.i18next.store.data.en.default, null, 2)` and copy it
+ * 1. In obsidian dev console type: `JSON.stringify(activeWindow.i18next.store.data.en.default, null, 2)` and copy it
  * 2. Go to any browser webpage and type `document.write(<paste>)` replace `<paste>` with what you just copied
  * 3. In that same webpage, set the style of the body to have `white-space: pre`
  * 4. Copy the (now formatted) JSON data
@@ -2685,7 +2685,7 @@ export type ObsidianDefaultText = {
 	};
 };
 
-const obsidianFixed = window.i18next.getFixedT(null, "default");
+const obsidianFixed = (key: string, variables?: Record<string, string>) => activeWindow.i18next.t(key, { ...variables, ns: "default" });
 export const obsidianText = (
 	key: NestedPaths<ObsidianDefaultText>,
 	variables?: Record<string, string>

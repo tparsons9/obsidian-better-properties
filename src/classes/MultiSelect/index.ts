@@ -1,5 +1,4 @@
 import { App, Constructor, Setting } from "obsidian";
-import { InputSuggest } from "../InputSuggest";
 // import {  Multiselect } from "obsidian-typings";
 
 export const resolveMultiSelectPrototype = (app: App) => {
@@ -10,19 +9,18 @@ export const resolveMultiSelectPrototype = (app: App) => {
 	const el = createDiv();
 	const cmp = widget.render(el, [], {
 		app,
-		blur: () => {},
+		blur: () => { },
 		key: "tags",
-		onChange: () => {},
+		onChange: () => { },
 		sourcePath: "",
 	});
 
 	const { multiselect } = cmp;
-	const MultiSelectClass = Object.getPrototypeOf(multiselect).constructor;
-	return MultiSelectClass as Constructor<Multiselect>;
+	const prototype = Object.getPrototypeOf(multiselect) as { constructor: Constructor<Multiselect> };
+	return prototype.constructor;
 };
 
 interface Multiselect {
-	constructor(parentEl: HTMLElement): void;
 
 	elements: HTMLElement[];
 	inputEl: HTMLElement;
@@ -65,100 +63,109 @@ interface Multiselect {
 	triggerChange(): void;
 }
 
-export class MultiselectComponent extends resolveMultiSelectPrototype(app) {
-	isInputElSuggestAdded: boolean = false;
-	addSuggestCallback:
-		| ((inputEl: HTMLDivElement, index: number) => InputSuggest<any>)
-		| undefined;
-	constructor(parentEl: HTMLElement | Setting) {
-		const el = parentEl instanceof HTMLElement ? parentEl : parentEl.controlEl;
-		super(el);
-	}
-
-	addSuggest(cb: this["addSuggestCallback"]): this {
-		this.addSuggestCallback = cb;
-		return this;
-	}
-
-	updateAndRender(cb: (value: string[]) => string[]): this {
-		const value = [...this.values];
-		const updated = cb(value);
-		this.setValues(updated);
-		this.renderValues();
-		return this;
-	}
-
-	renderValues(): this {
-		super.renderValues.call(this);
-
-		if (this.addSuggestCallback && !this.isInputElSuggestAdded) {
-			this.isInputElSuggestAdded = true;
-			this.addSuggestCallback(
-				this.inputEl as HTMLDivElement,
-				this.getItemIndex(this.inputEl)
-			);
+export const resolveMultiselectComponent = (app: App) => {
+	const NativeMultiSelect = resolveMultiSelectPrototype(app);
+	class MultiselectComponent extends NativeMultiSelect {
+		isInputElSuggestAdded: boolean = false;
+		addSuggestCallback:
+			| ((inputEl: HTMLDivElement, index: number) => unknown)
+			| undefined;
+		constructor(parentEl: HTMLElement | Setting) {
+			const el = parentEl instanceof Setting ? parentEl.controlEl : parentEl;
+			super(el);
 		}
 
-		return this;
-	}
-
-	getItemIndex(inputEl: HTMLElement): number {
-		const { parentElement } = inputEl;
-		if (!parentElement) {
-			return -1;
-		}
-		return Array.from(parentElement.children).indexOf(inputEl);
-	}
-
-	setupInput: (
-		inputEl: HTMLElement,
-		update: (item: string, index: number) => void
-	) => void = (inputEl) => {
-		if (this.addSuggestCallback) {
-			this.addSuggestCallback(
-				inputEl as HTMLDivElement,
-				this.getItemIndex(inputEl)
-			);
+		addSuggest(cb: this["addSuggestCallback"]): this {
+			this.addSuggestCallback = cb;
+			return this;
 		}
 
-		const update = (e: Event) => {
-			const index = this.getItemIndex(inputEl);
-			const newItem = (e.target as Element)?.textContent ?? "";
+		updateAndRender(cb: (value: string[]) => string[]): this {
+			const value = [...this.values];
+			const updated = cb(value);
+			this.setValues(updated);
+			this.renderValues();
+			return this;
+		}
 
-			this.updateAndRender((prev) => {
-				if (this.values.contains(newItem)) {
-					inputEl.textContent = this.values[index] ?? "";
-					inputEl.blur();
+		renderValues(): this {
+			super.renderValues.call(this);
+
+			if (this.addSuggestCallback && !this.isInputElSuggestAdded) {
+				this.isInputElSuggestAdded = true;
+				this.addSuggestCallback(
+					this.inputEl as HTMLDivElement,
+					this.getItemIndex(this.inputEl)
+				);
+			}
+
+			return this;
+		}
+
+		getItemIndex(inputEl: HTMLElement): number {
+			const { parentElement } = inputEl;
+			if (!parentElement) {
+				return -1;
+			}
+			return Array.from(parentElement.children).indexOf(inputEl);
+		}
+
+		setupInput: (
+			inputEl: HTMLElement,
+			update: (item: string, index: number) => void
+		) => void = (inputEl) => {
+			if (this.addSuggestCallback) {
+				this.addSuggestCallback(
+					inputEl as HTMLDivElement,
+					this.getItemIndex(inputEl)
+				);
+			}
+
+			const update = (e: Event) => {
+				const index = this.getItemIndex(inputEl);
+				const newItem = (e.target as Element)?.textContent ?? "";
+
+				this.updateAndRender((prev) => {
+					if (this.values.contains(newItem)) {
+						inputEl.textContent = this.values[index] ?? "";
+						inputEl.blur();
+						return prev;
+					}
+					if (!newItem) {
+						return prev.filter((_, i) => i !== index);
+					}
+					prev[index] = newItem;
 					return prev;
-				}
-				if (!newItem) {
-					return prev.filter((_, i) => i !== index);
-				}
-				prev[index] = newItem;
-				return prev;
+				});
+			};
+
+			inputEl.addEventListener("blur", update);
+			inputEl.addEventListener("keydown", (e) => {
+				if (e.key !== "Enter") return;
+				inputEl.blur();
 			});
 		};
 
-		inputEl.addEventListener("blur", update);
-		inputEl.addEventListener("keydown", (e) => {
-			if (e.key !== "Enter") return;
-			inputEl.blur();
-		});
-	};
+		findDuplicate: (item: string, value: string[]) => number = (item, value) => {
+			return value.indexOf(item);
+		};
 
-	findDuplicate: (item: string, value: string[]) => number = (item, value) => {
-		return value.indexOf(item);
-	};
-
-	createOption: (item: string) => void = (item) => {
-		if (!item) return;
-		// if (this.findDuplicate(item, this.values) !== -1) return;
-		if (this.values.contains(item)) {
+		createOption: (item: string) => void = (item) => {
+			if (!item) return;
+			// if (this.findDuplicate(item, this.values) !== -1) return;
+			if (this.values.contains(item)) {
+				this.setInputText("");
+				this.inputEl.blur();
+				return;
+			}
+			this.updateAndRender((prev) => [...prev, item]);
 			this.setInputText("");
-			this.inputEl.blur();
-			return;
-		}
-		this.updateAndRender((prev) => [...prev, item]);
-		this.setInputText("");
-	};
-}
+		};
+	}
+
+	return MultiselectComponent;
+};
+
+export const createMultiselectComponent = (app: App, parentEl: HTMLElement | Setting) =>
+	new (resolveMultiselectComponent(app))(parentEl);
+export type MultiselectComponent = ReturnType<typeof createMultiselectComponent>;

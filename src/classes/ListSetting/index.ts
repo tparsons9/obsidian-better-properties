@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { ButtonComponent, Setting } from "obsidian";
 import { Icon } from "~/lib/types/icons";
 import { arrayMove, clampNumber } from "~/lib/utils";
@@ -7,8 +8,8 @@ export class ListSetting<T> extends Setting {
 	items: Item<T>[] = [];
 	footerContainerEl: HTMLElement;
 	value: T[] = [];
-	onCreateItemCallback: (value: T, item: Item<T>) => void = () => {};
-	onChangeCallback: (value: T[]) => void = () => {};
+	onCreateItemCallback: (value: T, item: Item<T>) => void = () => { };
+	onChangeCallback: (value: T[]) => void = () => { };
 	draggingIndex: number = -1;
 	draggingOverIndex: number = -1;
 
@@ -106,7 +107,7 @@ export class ListSetting<T> extends Setting {
 	renderAllItems(): this {
 		this.items = [];
 		this.itemsContainerEl.empty();
-		this.value.forEach((v) => this.renderItem(v));
+		this.value.forEach(asyncHandler((v) => this.renderItem(v)));
 		return this;
 	}
 
@@ -135,14 +136,14 @@ export class ListSetting<T> extends Setting {
 
 class Item<T> extends Setting {
 	index: number;
-	focusCallback: () => void = () => {};
+	focusCallback: () => void = () => { };
 	constructor(public list: ListSetting<T>, public value: T) {
 		super(list.itemsContainerEl);
 		this.infoEl.remove();
 		list.items.push(this);
 		this.index = list.items.length - 1;
 
-		this.settingEl.addEventListener("dragenter", (ev) => this.onDragEnter(ev));
+		this.settingEl.addEventListener("dragenter", asyncHandler((ev) => this.onDragEnter(ev)));
 	}
 
 	onFocus(cb: () => void): this {
@@ -202,9 +203,9 @@ class Item<T> extends Setting {
 			el.classList.add("clickable-icon", "extra-setting-button");
 			el.draggable = true;
 			el.tabIndex = 0;
-			el.addEventListener("dragstart", (ev) => this.onDragStart(ev));
-			el.addEventListener("dragend", () => this.onDragEnd());
-			el.addEventListener("keydown", (ev) => this.onKeyDown(ev));
+			el.addEventListener("dragstart", asyncHandler((ev) => this.onDragStart(ev)));
+			el.addEventListener("dragend", asyncHandler(() => this.onDragEnd()));
+			el.addEventListener("keydown", asyncHandler((ev) => this.onKeyDown(ev)));
 		});
 		return this;
 	}

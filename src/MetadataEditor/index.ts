@@ -26,7 +26,7 @@ export const refreshPropertyEditor = (
 	const withoutDots = lower.split(".")[0];
 	plugin.app.metadataTypeManager.trigger("changed", lower);
 	plugin.app.workspace.iterateAllLeaves((leaf) => {
-		if (!leaf.view.hasOwnProperty("metadataEditor")) return;
+		if (!Object.hasOwn(leaf.view, "metadataEditor")) return;
 		const view = leaf.view as View & {
 			metadataEditor: {
 				onMetadataTypeChange: (propName: string) => void;

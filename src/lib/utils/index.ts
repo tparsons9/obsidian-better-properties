@@ -1,3 +1,5 @@
+import { stringValue } from "~/core/properties";
+import { asyncHandler } from "~/lib/async";
 import {
 	CachedMetadata,
 	DataWriteOptions,
@@ -9,7 +11,9 @@ import {
 	Vault,
 } from "obsidian";
 import BetterProperties from "~/main";
-import { BetterPropertiesSettings } from "~/Plugin/settings";
+import { processFiles } from "~/core/persistence";
+import { findKey, isRecord, renameFrontmatterProperty, deleteFrontmatterProperty } from "~/core/properties";
+export { findKey } from "~/core/properties";
 
 export type Satisfies<Constraint, Type> = Type extends Constraint
 	? Type
@@ -21,8 +25,8 @@ export type Prettify<T> = {
 
 export type NonNullishObject<T> = T extends Record<string, unknown>
 	? {
-			[P in keyof T]-?: NonNullable<NonNullishObject<T[P]>>;
-	  }
+		[P in keyof T]-?: NonNullable<NonNullishObject<T[P]>>;
+	}
 	: NonNullable<T>;
 
 export type Optional<T extends Record<string, unknown>> = {
@@ -30,22 +34,22 @@ export type Optional<T extends Record<string, unknown>> = {
 } & Record<string, unknown>;
 
 export type NestedPaths<T, Prefix extends string = ""> = {
-	[K in keyof T & string]: T[K] extends Record<string, any>
-		? `${Prefix}${K}` | NestedPaths<T[K], `${Prefix}${K}.`>
-		: `${Prefix}${K}`;
+	[K in keyof T & string]: T[K] extends Record<string, unknown>
+	? `${Prefix}${K}` | NestedPaths<T[K], `${Prefix}${K}.`>
+	: `${Prefix}${K}`;
 }[keyof T & string];
 
 export type TryCatchResult<T> =
 	| {
-			success: true;
-			data: T;
-			error: undefined;
-	  }
+		success: true;
+		data: T;
+		error: undefined;
+	}
 	| {
-			success: false;
-			data: undefined;
-			error: string;
-	  };
+		success: false;
+		data: undefined;
+		error: string;
+	};
 
 export const tryCatch = async <T>(
 	toTry: Promise<T> | (() => Promise<T> | T)
@@ -58,10 +62,10 @@ export const tryCatch = async <T>(
 			e instanceof Error
 				? e.message
 				: typeof e === "string"
-				? e
-				: e?.toString
-				? e.toString()
-				: "Unknown error";
+					? e
+					: e !== null && e !== undefined
+						? stringValue(e)
+						: "Unknown error";
 		return { success: false, data: undefined, error };
 	}
 };
@@ -75,10 +79,10 @@ export const syncTryCatch = <T>(toTry: () => T): TryCatchResult<T> => {
 			e instanceof Error
 				? e.message
 				: typeof e === "string"
-				? e
-				: e?.toString
-				? e.toString()
-				: "Unknown error";
+					? e
+					: e !== null && e !== undefined
+						? stringValue(e)
+						: "Unknown error";
 		return { success: false, data: undefined, error };
 	}
 };
@@ -226,15 +230,6 @@ export const tryProcessFrontmatter = async ({
 /**
  * Finds a key in an object case-insensitively
  */
-export const findKey = (
-	obj: Record<string, unknown>,
-	key: string
-): string | null => {
-	const lower = key.toLowerCase();
-	const found = Object.keys(obj).find((k) => k.toLowerCase() === lower);
-	return found ?? null;
-};
-
 /**
  * Case-insensitively delete a property's configurations in this plugin's settings
  */
@@ -247,9 +242,9 @@ export const deletePropertyConfiguration = async ({
 }) => {
 	await plugin.updateSettings((settings) => {
 		if (!settings) return settings;
-		const key = findKey(settings, property);
+		const key = findKey(settings.propertySettings, property);
 		if (!key) return settings;
-		delete settings[key as keyof BetterPropertiesSettings];
+		delete settings.propertySettings[key];
 		return settings;
 	});
 };
@@ -282,92 +277,41 @@ export const renamePropertyConfiguration = async ({
 /**
  * Delete's a property case-insensitively from all files' frontmatter and all associated plugin settings
  */
-export const deleteProperty = async ({
-	plugin,
-	property,
-}: {
-	plugin: BetterProperties;
-	property: string;
-}) => {
-	iterativelyProcessFrontmatter({
-		fileManager: plugin.app.fileManager,
-		vault: plugin.app.vault,
-		process: (fm) => {
-			if (!fm) return;
-			const key = findKey(fm, property);
-			if (!key) return;
-			delete fm[key];
-		},
-		afterProcess: async ({ success, error }) => {
-			if (success) {
-				await deletePropertyConfiguration({ plugin, property });
-				return;
-			}
-			const msg = "Better Properties: Error when deleting property";
-			new Notice(
-				createFragment((el) => {
-					el.createDiv({ text: msg });
-					el.createDiv({ text: error });
-				}),
-				0
-			);
-			console.error(msg + "\n" + error);
-		},
+const editProperty = async (
+	plugin: BetterProperties, property: string, newProperty?: string,
+) => {
+	if (newProperty === property) return;
+	const { fileManager, vault, metadataTypeManager } = plugin.app;
+	const failures = await processFiles(vault.getMarkdownFiles(), async (file) => {
+		await fileManager.processFrontMatter(file, (fm: unknown) => {
+			if (!isRecord(fm)) return;
+			if (newProperty === undefined) deleteFrontmatterProperty(fm, property);
+			else renameFrontmatterProperty(fm, property, newProperty);
+		});
 	});
+	if (failures.length) {
+		const message = `Better Properties: ${failures.length} file(s) could not be updated. Configuration was retained.\n${failures.map(({ path, error }) => `${path}: ${error}`).join("\n")}`;
+		new Notice(message, 0);
+		throw new Error(message);
+	}
+	if (newProperty === undefined) {
+		await deletePropertyConfiguration({ plugin, property });
+		asyncHandler(() => metadataTypeManager.unsetType(property))();
+	} else {
+		const assignedType = metadataTypeManager.getAssignedWidget(property) ?? "text";
+		await renamePropertyConfiguration({ plugin, property, newProperty });
+		asyncHandler(() => metadataTypeManager.setType(newProperty, assignedType))();
+		if (property.toLowerCase() !== newProperty.toLowerCase()) asyncHandler(() => metadataTypeManager.unsetType(property))();
+	}
 };
 
-/**
- * Renames a property case-insensitively in all files' frontmatter and all associated plugin settings
- */
-export const renameProperty = async ({
-	plugin,
-	property,
-	newProperty,
-}: {
-	plugin: BetterProperties;
-	property: string;
-	newProperty: string;
-}) => {
-	const assignedType =
-		plugin.app.metadataTypeManager.getAssignedWidget(property) ?? "text";
-	plugin.app.metadataTypeManager.setType(newProperty, assignedType);
-	plugin.app.metadataTypeManager.unsetType(property);
-	iterativelyProcessFrontmatter({
-		fileManager: plugin.app.fileManager,
-		vault: plugin.app.vault,
-		process: (fm) => {
-			if (!fm) return;
-			const key = findKey(fm, property);
-			if (!key) return;
-			const value = fm[key];
-			if (Array.isArray(value)) {
-				fm[newProperty] = [...value];
-			}
-			if (typeof value === "object") {
-				fm[newProperty] = { ...value };
-			}
-			if (typeof value !== "object") {
-				fm[newProperty] = value;
-			}
-			delete fm[key];
-		},
-		afterProcess: async ({ success, error }) => {
-			if (success) {
-				await renamePropertyConfiguration({ plugin, property, newProperty });
-				return;
-			}
-			const msg = "Better Properties: Error when renaming property";
-			new Notice(
-				createFragment((el) => {
-					el.createDiv({ text: msg });
-					el.createDiv({ text: error });
-				}),
-				0
-			);
-			console.error(msg + "\n" + error);
-		},
-	});
-};
+export const deleteProperty = async ({ plugin, property }: {
+	plugin: BetterProperties; property: string;
+}): Promise<void> => editProperty(plugin, property);
+
+export const renameProperty = async ({ plugin, property, newProperty }: {
+	plugin: BetterProperties; property: string; newProperty: string;
+}): Promise<void> => editProperty(plugin, property, newProperty);
 
 /**
  * Get icon ids for use with the lib/types/icons.ts
@@ -381,7 +325,7 @@ export const copyIcons = () => {
 		if (!acc) return quoted;
 		return acc + " | " + quoted;
 	}, "");
-	navigator.clipboard.writeText(str);
+	asyncHandler(() => navigator.clipboard.writeText(str))();
 };
 
 /**
@@ -401,7 +345,7 @@ export const getAllTags = (
 		tags.add(t);
 	});
 
-	const fmTags = cachedMetadata.frontmatter?.["tags"];
+	const fmTags: unknown = cachedMetadata.frontmatter?.["tags"];
 	if (!Array.isArray(fmTags)) {
 		return Array.from(tags);
 	}
@@ -434,6 +378,7 @@ export const makeDraggable = ({
 	parentEl,
 	itemsQuerySelector,
 	onDragEnd,
+	registerCleanup,
 }: {
 	/**
 	 * The element which is moved when dragged
@@ -458,7 +403,9 @@ export const makeDraggable = ({
 	 * @returns
 	 */
 	onDragEnd: (oldIndex: number, newIndex: number) => void;
+	registerCleanup: (cleanup: () => void) => () => void;
 }) => {
+	const doc = itemEl.doc;
 	dragHandleEl.addEventListener("mousedown", (mousedownEvent) => {
 		const dragGhostHiddenClass = "drag-ghost-hidden";
 		const dragGhostEl = createDiv({ cls: "drag-reorder-ghost" });
@@ -482,14 +429,14 @@ export const makeDraggable = ({
 			if (!hasDragged) {
 				hasDragged =
 					Math.abs(mousedownEvent.pageX - mousemoveEvent.pageX) >
-						dragThreshold ||
+					dragThreshold ||
 					Math.abs(mousedownEvent.pageY - mousemoveEvent.pageY) > dragThreshold;
 			}
 			if (!hasDragged) return;
 			if (!isSetupDone) {
 				const itemElClone = itemEl.cloneNode(true);
 				itemEl.classList.add(dragGhostHiddenClass);
-				if (!(itemElClone instanceof HTMLElement)) {
+				if (!(itemElClone.instanceOf(HTMLElement))) {
 					throw new Error("Cloned property element is not an HTMLElement");
 				}
 				itemElClone.classList.add("better-properties-draggable-item-clone");
@@ -503,8 +450,8 @@ export const makeDraggable = ({
 					"--better-properties-left": `calc(${left}px - var(--icon-size))`,
 					"--better-properties-top": `calc(${top}px - var(--icon-size))`,
 				});
-				window.activeDocument.body.appendChild(dragGhostEl);
-				window.activeDocument.body.classList.add("is-grabbing");
+				doc.body.appendChild(dragGhostEl);
+				doc.body.classList.add("is-grabbing");
 				isSetupDone = true;
 
 				parentEl.querySelectorAll(itemsQuerySelector)?.forEach((el, i) => {
@@ -517,9 +464,8 @@ export const makeDraggable = ({
 				});
 			}
 			dragGhostEl.setCssProps({
-				"--better-properties-transform": `translate(${
-					mousemoveEvent.pageX - left
-				}px, ${mousemoveEvent.pageY - top}px)`,
+				"--better-properties-transform": `translate(${mousemoveEvent.pageX - left
+					}px, ${mousemoveEvent.pageY - top}px)`,
 			});
 
 			otherItemElsPositions.forEach(({ top, bottom, el }, i) => {
@@ -540,18 +486,22 @@ export const makeDraggable = ({
 				currentIndex = i;
 			});
 		};
-		const onMouseUp = () => {
+		const cleanup = () => {
 			dragGhostEl.remove();
 			itemEl.classList.remove(dragGhostHiddenClass);
-			document.removeEventListener("mousemove", onMouseMove);
-			document.removeEventListener("mouseup", onMouseUp);
-			window.activeDocument.body.classList.remove("is-grabbing");
-
+			doc.removeEventListener("mousemove", onMouseMove);
+			doc.removeEventListener("mouseup", onMouseUp);
+			doc.body.classList.remove("is-grabbing");
+		};
+		const forget = registerCleanup(cleanup);
+		const onMouseUp = () => {
+			forget();
+			cleanup();
 			if (originalIndex === -1 || currentIndex === -1) return;
 			onDragEnd(originalIndex, currentIndex);
 		};
-		document.addEventListener("mousemove", onMouseMove);
-		document.addEventListener("mouseup", onMouseUp);
+		doc.addEventListener("mousemove", onMouseMove);
+		doc.addEventListener("mouseup", onMouseUp);
 	});
 };
 

@@ -1,4 +1,4 @@
-import { moment } from "obsidian";
+import { moment } from "~/lib/obsidian";
 import { CustomPropertyType } from "../types";
 import {
 	getPropertyTypeSettings,
@@ -25,8 +25,8 @@ export const renderWidget: CustomPropertyType["renderWidget"] = ({
 	const cmp = new PropertyWidgetComponent(
 		"created",
 		container,
-		() => {},
-		() => {}
+		() => { },
+		() => { }
 	);
 
 	const file = plugin.app.vault.getFileByPath(ctx.sourcePath);

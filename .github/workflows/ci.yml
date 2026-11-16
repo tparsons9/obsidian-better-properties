@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: Dimagious/obsidian-plugin-dev-kit/.github/workflows/plugin-ci.yml@aa82d95aa4fd3e85e8559b5746c7e98631f850dd # v0.4.0
+    with:
+      node-version: "26.13.1"
+      scan: false
+      coverage-artifact: true
+
+  scanner-report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "26.13.1"
+          cache: npm
+      - run: npm ci
+      - name: Report community scanner findings (advisory)
+        continue-on-error: true
+        run: npm run scan > scanner-report.txt 2>&1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: better-properties-scanner-report
+          path: scanner-report.txt
+          if-no-files-found: error

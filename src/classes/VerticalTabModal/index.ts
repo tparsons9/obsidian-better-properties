@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { App, Modal, Platform, setIcon } from "obsidian";
 import { Icon } from "~/lib/types/icons";
 
@@ -8,7 +9,7 @@ export class VerticalTabModal extends Modal {
 	public backButtonEl: HTMLElement;
 	public tabGroups: TabGroup[] = [];
 	public activeTabIndex: number = 0;
-	public onTabChangeCallback: () => void = () => {};
+	public onTabChangeCallback: () => void = () => { };
 
 	onClose(): void {
 		super.onClose.call(this);
@@ -114,7 +115,7 @@ class Tab {
 	labelEl: HTMLElement;
 	title: string = "";
 	private onSelectCallback: (event?: MouseEvent) => void | Promise<void> =
-		() => {};
+		() => { };
 
 	constructor(public group: TabGroup, containerEl: HTMLElement) {
 		this.labelEl = containerEl.createDiv({ cls: "vertical-tab-nav-item" });
@@ -159,7 +160,7 @@ class Tab {
 		} = this;
 
 		modal.onTabChangeCallback();
-		modal.onTabChangeCallback = () => {};
+		modal.onTabChangeCallback = () => { };
 
 		if (Platform.isMobile) {
 			modal.tabHeaderEl.remove();
@@ -168,7 +169,7 @@ class Tab {
 			modal.titleEl.prepend(modal.backButtonEl);
 		}
 		modal.setTitle(title);
-		this.onSelectCallback(event);
+		asyncHandler(() => this.onSelectCallback(event))();
 	}
 
 	then(cb: (tab: this) => void): this {

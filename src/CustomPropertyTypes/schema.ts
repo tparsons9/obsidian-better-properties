@@ -1,21 +1,20 @@
-import { NonNullishObject } from "~/lib/utils";
 import { PropertySettings, PropertyTypeSchema } from "./types";
 import * as v from "valibot";
-import { selectSettingsSchema } from "./Select";
-import { toggleSettingsSchema } from "./Toggle";
-import { titleSettingsSchema } from "./Title";
-import { markdownSettingsSchema } from "./Markdown";
-import { createdSettingsSchema } from "./Created";
-import { objectSettingsSchema } from "./Object";
-import { colorSettingsSchema } from "./Color";
-import { ratingSettingsSchema } from "./Rating";
-import { dateCustomSettingsSchema } from "./DateCustom";
-import { sliderSettingsSchema } from "./Slider";
-import { timeSettingsSchema } from "./Time";
-import { multiSelectSettingsSchema } from "./MultiSelect";
-import { numericSettingsSchema } from "./Numeric";
-import { arraySettingsSchema } from "./Array";
-import { relationSettingsSchema } from "./Relation";
+import { selectSettingsSchema } from "./Select/schema";
+import { toggleSettingsSchema } from "./Toggle/schema";
+import { titleSettingsSchema } from "./Title/schema";
+import { markdownSettingsSchema } from "./Markdown/schema";
+import { createdSettingsSchema } from "./Created/schema";
+import { objectSettingsSchema } from "./Object/schema";
+import { colorSettingsSchema } from "./Color/schema";
+import { ratingSettingsSchema } from "./Rating/schema";
+import { dateCustomSettingsSchema } from "./DateCustom/schema";
+import { sliderSettingsSchema } from "./Slider/schema";
+import { timeSettingsSchema } from "./Time/schema";
+import { multiSelectSettingsSchema } from "./MultiSelect/schema";
+import { numericSettingsSchema } from "./Numeric/schema";
+import { arraySettingsSchema } from "./Array/schema";
+import { relationSettingsSchema } from "./Relation/schema";
 
 type SettingsBase = v.ObjectSchema<
 	Record<string, PropertyTypeSchema>,
@@ -54,14 +53,10 @@ export const propertySettingsSchema = v.object({
 }) satisfies SettingsBase;
 
 export const getDefaultPropertySettings =
-	(): NonNullishObject<PropertySettings> => {
-		return Object.entries(propertySettingsSchema.entries).reduce(
-			(acc, [k, schema]) => {
-				const key = k as keyof typeof acc;
-				// @ts-ignore TODO
-				acc[key] = v.parse(schema, {});
-				return acc;
-			},
-			{} as NonNullishObject<PropertySettings>
-		);
+	(): ResolvedPropertySettings => {
+		return Object.fromEntries(
+			Object.entries(propertySettingsSchema.entries).map(([key, schema]) => [key, v.parse(schema, {})])
+		) as ResolvedPropertySettings;
 	};
+
+export type ResolvedPropertySettings = { [K in keyof PropertySettings]-?: NonNullable<PropertySettings[K]> };

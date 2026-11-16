@@ -1,8 +1,10 @@
+import { stringValue } from "~/core/properties";
+import { asyncHandler } from "~/lib/async";
 import { CustomPropertyType } from "../types";
 import { PropertyWidgetComponentNew } from "../utils";
 import { PropertyRenderContext } from "obsidian-typings";
 import BetterProperties from "~/main";
-import { MultiselectComponent } from "~/classes/MultiSelect";
+import { resolveMultiselectComponent, type MultiselectComponent } from "~/classes/MultiSelect";
 import { getFirstLinkPathDest } from "~/lib/utils";
 import { Keymap, Setting } from "obsidian";
 import { LinkSuggest } from "~/classes/InputSuggest/LinkSuggest";
@@ -23,12 +25,12 @@ class RelationTypeComponent extends PropertyWidgetComponentNew<
 	type = "relation" as const;
 	parseValue = (v: unknown): string[] => {
 		if (Array.isArray(v)) {
-			return v.map((item) => item?.toString() ?? "");
+			return v.map((item: unknown) => stringValue(item));
 		}
 		return [];
 	};
 
-	multiselect: ModifiedMultiselectComponent;
+	multiselect: MultiselectComponent;
 
 	constructor(
 		plugin: BetterProperties,
@@ -49,7 +51,7 @@ class RelationTypeComponent extends PropertyWidgetComponentNew<
 
 		let prevousValue = [...parsed];
 
-		this.multiselect = new ModifiedMultiselectComponent(
+		this.multiselect = new (resolveModifiedMultiselect(plugin))(
 			plugin,
 			el,
 			ctx.sourcePath
@@ -57,7 +59,7 @@ class RelationTypeComponent extends PropertyWidgetComponentNew<
 			.addSuggest((inputEl) => {
 				const suggest = new LinkSuggest(
 					plugin.app,
-					inputEl as HTMLDivElement,
+					inputEl,
 					true
 				)
 					.setFilter((s) => {
@@ -115,72 +117,76 @@ class RelationTypeComponent extends PropertyWidgetComponentNew<
 	}
 }
 
-class ModifiedMultiselectComponent extends MultiselectComponent {
-	previousValues: string[] = [];
-	constructor(
-		public plugin: BetterProperties,
-		parentEl: HTMLElement | Setting,
-		public sourcePath: string
-	) {
-		super(parentEl);
-	}
+const resolveModifiedMultiselect = (owner: BetterProperties) => {
+	class ModifiedMultiselectComponent extends resolveMultiselectComponent(owner.app) {
+		previousValues: string[] = [];
+		constructor(
+			public plugin: BetterProperties,
+			parentEl: HTMLElement | Setting,
+			public sourcePath: string
+		) {
+			super(parentEl);
+		}
 
-	setValues(value: string[]): this {
-		this.previousValues = [...this.values];
-		const parsedValue: string[] = [];
-		value.forEach((s) => {
-			const file = getFirstLinkPathDest(
-				this.plugin.app.metadataCache,
-				this.sourcePath,
-				s
-			);
-			if (!file) return;
-			parsedValue.push(s);
-			// if (s.startsWith("[[") && s.endsWith("]]")) return s;
-			// return `[[${s}]]`;
-		});
-		super.setValues(parsedValue);
+		setValues(value: string[]): this {
+			this.previousValues = [...this.values];
+			const parsedValue: string[] = [];
+			value.forEach((s) => {
+				const file = getFirstLinkPathDest(
+					this.plugin.app.metadataCache,
+					this.sourcePath,
+					s
+				);
+				if (!file) return;
+				parsedValue.push(s);
+				// if (s.startsWith("[[") && s.endsWith("]]")) return s;
+				// return `[[${s}]]`;
+			});
+			super.setValues(parsedValue);
 
-		return this;
-	}
+			return this;
+		}
 
-	renderValues(): this {
-		super.renderValues();
+		renderValues(): this {
+			super.renderValues();
 
-		// renderValues is called bv the constructor before plugin is attached as a property
-		if (!this.plugin) return this;
+			// renderValues is called bv the constructor before plugin is attached as a property
+			if (!this.plugin) return this;
 
-		const { workspace, metadataCache } = this.plugin.app;
-		this.elements.forEach((el, i) => {
-			const value = this.values[i];
-			const linkText = value.slice(2, -2);
-			const contentEl: HTMLElement | null = el.querySelector(
-				"& > .multi-select-pill-content"
-			);
-			const textEl = contentEl?.firstElementChild;
-			if (textEl) {
-				textEl.textContent = linkText;
-			}
-			el.classList.add("internal-link");
-			if (!getFirstLinkPathDest(metadataCache, this.sourcePath, value)) {
-				el.classList.add("is-unresolved");
-			}
-
-			el.addEventListener("click", (e) => {
-				if (
-					!(
-						e.target === el ||
-						e.target === contentEl ||
-						(e.target instanceof Element && contentEl?.contains(e.target))
-					)
-				) {
-					return;
+			const { workspace, metadataCache } = this.plugin.app;
+			this.elements.forEach((el, i) => {
+				const value = this.values[i];
+				const linkText = value.slice(2, -2);
+				const contentEl: HTMLElement | null = el.querySelector(
+					"& > .multi-select-pill-content"
+				);
+				const textEl = contentEl?.firstElementChild;
+				if (textEl) {
+					textEl.textContent = linkText;
+				}
+				el.classList.add("internal-link");
+				if (!getFirstLinkPathDest(metadataCache, this.sourcePath, value)) {
+					el.classList.add("is-unresolved");
 				}
 
-				workspace.openLinkText(linkText, this.sourcePath, Keymap.isModEvent(e));
-				el.classList.remove("is-unresolved");
+				el.addEventListener("click", (e) => {
+					if (
+						!(
+							e.target === el ||
+							e.target === contentEl ||
+							(e.targetNode?.instanceOf(Element) && contentEl?.contains(e.targetNode))
+						)
+					) {
+						return;
+					}
+
+					asyncHandler(() => workspace.openLinkText(linkText, this.sourcePath, Keymap.isModEvent(e)))();
+					el.classList.remove("is-unresolved");
+				});
 			});
-		});
-		return this;
+			return this;
+		}
 	}
-}
+
+	return ModifiedMultiselectComponent;
+};

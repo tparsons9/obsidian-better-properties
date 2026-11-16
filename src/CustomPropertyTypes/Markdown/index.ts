@@ -1,9 +1,8 @@
 import { text } from "~/i18next";
-import { CustomPropertyType, PropertyTypeSchema } from "../types";
+import { CustomPropertyType } from "../types";
 import { registerListeners } from "./registerListeners";
 import { renderSettings } from "./renderSettings";
 import { renderWidget } from "./renderWidget";
-import * as v from "valibot";
 
 export const markdownPropertyType: CustomPropertyType = {
 	type: "markdown",
@@ -15,6 +14,4 @@ export const markdownPropertyType: CustomPropertyType = {
 	renderWidget,
 };
 
-export const markdownSettingsSchema = v.optional(
-	v.object({})
-) satisfies PropertyTypeSchema;
+export { markdownSettingsSchema } from "./schema";

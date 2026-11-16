@@ -24,9 +24,8 @@ export const patchMetadataEditorProperty = (
 	metadataEditor._children = [];
 	metadataEditor._events = [];
 	metadataEditor.owner = {
-		getFile: () => {},
+		getFile: () => { },
 	} as MarkdownView;
-	metadataEditor.addPropertyButtonEl;
 	metadataEditor.propertyListEl = createDiv();
 	metadataEditor.containerEl = createDiv();
 	metadataEditor.app = app;
@@ -39,11 +38,6 @@ export const patchMetadataEditorProperty = (
 	metadataEditor.owner.getHoverSource = () => "source";
 	metadataEditor.load();
 	metadataEditor.synchronize({ tags: "[]" });
-	const MetadataEditorPropertyPrototype = Object.getPrototypeOf(
-		metadataEditor.rendered[0]
-	) as (typeof metadataEditor.rendered)[0];
-
-	MetadataEditorPropertyPrototype; // stops no-unused-variables rule
 
 	// I don't this is actually needed. And it causes issues with focusing the valueEl when pressing Enter withint the keyInputEl.
 	// const removePatch = around(MetadataEditorPropertyPrototype, {
@@ -59,5 +53,5 @@ export const patchMetadataEditorProperty = (
 	// 	},
 	// });
 
-	// plugin.register(removePatch);
+	// plugin.registerRuntime(removePatch);
 };

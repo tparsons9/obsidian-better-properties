@@ -3,8 +3,20 @@
 Each release should include an entry detailing the changes made since the last
 release. Some specific details may be omitted for brevity.
 
-## 1.0.0
+## [Unreleased]
 
+### Changed
+
+- Adopt the pinned opdk build, static checks, regression tests, and CI workflows.
+- Separate settings schemas from UI initialization and preserve upstream settings formats.
+
+### Fixed
+
+- Preserve arrays, null, false, and zero during property edits and default application.
+- Await vault-wide edits and retain configuration when a file cannot be written.
+- Serialize settings saves and restore plugin-owned patches when unloading.
+
+## [1.0.0]
 Not many user-facing changes this time, but I wanted to submit BP to the community plugins directory to hopefully get it approved before the end of the year. Fingers crossed🤞
 
 ### Fixed
@@ -15,8 +27,7 @@ Not many user-facing changes this time, but I wanted to submit BP to the communi
 
 - Updated many parts of the plugin to ensure adherence to the different obsidian guidelines.
 
-## 0.1.11
-
+## [0.1.11]
 7 bugs and 3 feature requests completed. Thank you so much to everyone opening issues<3
 
 ### New
@@ -37,8 +48,7 @@ Not many user-facing changes this time, but I wanted to submit BP to the communi
 - Numeric will now treat commas (,) as decimal points (.) while typing an expression. [#34](https://github.com/unxok/obsidian-better-properties/issues/34)
 - List properties no longer have unnecessary added height. [#31](https://github.com/unxok/obsidian-better-properties/issues/31)
 
-## 0.1.10
-
+## [0.1.10]
 This should be the last release before the beta annoucement🎉
 
 ### Fixed
@@ -47,8 +57,7 @@ This should be the last release before the beta annoucement🎉
 - ColorTextComponent's hidden color input is now correctly positioned within it's parent.
 - Removed default options when opening settings for the first time for a Select or Multi-Select
 
-## 0.1.9
-
+## [0.1.9]
 Lots of `bpjs` updates!
 
 ### New
@@ -70,8 +79,7 @@ Lots of `bpjs` updates!
 
 - removed the "script" codeblock processor (was used for prototyping)
 
-## 0.1.8
-
+## [0.1.8]
 Not much done in this release, but it's the first release since creating the [Better Properties Docs](https://better-properties.unxok.com) site!
 
 ### New
@@ -89,8 +97,7 @@ Not much done in this release, but it's the first release since creating the [Be
 - Updated readme with the link to the new docs site
 - Temporarily removed feature of `bpjs` blocks to re-render when subscribed files change due to memory leak. I have an idea of how to fix it that will likely be in next release.
 
-## 0.1.7
-
+## [0.1.7]
 ### New
 
 - Setup fully automated releases through github actions with changelog entries

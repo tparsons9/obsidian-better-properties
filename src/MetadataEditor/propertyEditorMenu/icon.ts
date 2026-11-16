@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { Setting } from "obsidian";
 import { ConfirmationModal } from "~/classes/ConfirmationModal";
 import { IconSuggest } from "~/classes/InputSuggest/IconSuggest";
@@ -37,12 +38,12 @@ export const openChangeIconModal = ({
 		});
 
 	modal
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn.setButtonText(obsidianText("dialogue.button-cancel")).onClick(() => {
 				modal.close();
-			})
+			}))
 		)
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn
 				.setButtonText(obsidianText("dialogue.button-update"))
 				.setCta()
@@ -55,7 +56,7 @@ export const openChangeIconModal = ({
 					});
 					refreshPropertyEditor(plugin, property);
 					modal.close();
-				})
+				}))
 		);
 
 	modal.open();

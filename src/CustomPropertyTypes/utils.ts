@@ -1,3 +1,6 @@
+import { asyncHandler } from "~/lib/async";
+import type { ResolvedPropertySettings } from "./schema";
+import { getTrueProperty } from "~/core/properties";
 import BetterProperties from "~/main";
 import { CustomTypeKey, PropertySettings } from "./types";
 import { getDefaultPropertySettings } from "./schema";
@@ -8,21 +11,11 @@ import {
 } from "obsidian-typings";
 import { customPropertyTypePrefix } from "~/lib/constants";
 import { MetadataTypeManager } from "obsidian-typings";
-import { NonNullishObject } from "~/lib/utils";
 
 /**
  * Array sub-properties are in the format `<parent>.<index>`. This function replaces the index with a `#` to properly get/set settings for the sub-property
  */
-export const getTrueProperty = (property: string) => {
-	return property
-		.split(".")
-		.map((part) => {
-			const n = Number(part);
-			if (Number.isNaN(n)) return part;
-			return "#";
-		})
-		.join(".");
-};
+export { getTrueProperty } from "~/core/properties";
 
 export const getPropertySettings = ({
 	plugin,
@@ -30,7 +23,7 @@ export const getPropertySettings = ({
 }: {
 	plugin: BetterProperties;
 	property: string;
-}): NonNullishObject<PropertySettings> => {
+}): ResolvedPropertySettings => {
 	const lower = getTrueProperty(property).toLowerCase();
 	if (!plugin.settings.propertySettings) {
 		plugin.settings.propertySettings = {};
@@ -68,7 +61,7 @@ export const deletePropertySettings = ({
 		plugin.settings.propertySettings = {};
 	}
 	delete plugin.settings.propertySettings[lower];
-	plugin.saveSettings();
+	asyncHandler(() => plugin.saveSettings())();
 };
 
 export const setPropertySettings = ({
@@ -85,7 +78,7 @@ export const setPropertySettings = ({
 		plugin.settings.propertySettings = {};
 	}
 	plugin.settings.propertySettings[lower] = settings;
-	plugin.saveSettings();
+	asyncHandler(() => plugin.saveSettings())();
 };
 
 export const updatePropertySettings = ({
@@ -140,11 +133,11 @@ export const updatePropertyTypeSettings = <T extends CustomTypeKey>({
 	plugin: BetterProperties;
 	property: string;
 	type: T;
-	cb: (settings: PropertySettings[T]) => PropertySettings[T];
+	cb: (settings: NonNullable<PropertySettings[T]>) => NonNullable<PropertySettings[T]>;
 }): void => {
-	const settings: PropertySettings = getPropertySettings({ plugin, property });
-	settings[type] = cb(settings[type]);
-	setPropertySettings({ plugin, property, settings });
+	const settings = getPropertySettings({ plugin, property });
+	const updated = { ...settings, [type]: cb(settings[type]) };
+	setPropertySettings({ plugin, property, settings: updated });
 };
 
 export class PropertyWidgetComponent implements PropertyWidgetComponentBase {
@@ -153,7 +146,7 @@ export class PropertyWidgetComponent implements PropertyWidgetComponentBase {
 		public containerEl: HTMLElement,
 		public setValue: (value: unknown) => void,
 		public onFocus: () => void
-	) {}
+	) { }
 
 	focus(): void {
 		this.onFocus();
@@ -163,8 +156,7 @@ export class PropertyWidgetComponent implements PropertyWidgetComponentBase {
 export abstract class PropertyWidgetComponentNew<
 	Type extends CustomTypeKey,
 	Value
-> implements PropertyWidgetComponent
-{
+> implements PropertyWidgetComponent {
 	containerEl: HTMLElement;
 	onFocus: () => void = () => {
 		throw new Error("Method not implemented");
@@ -214,69 +206,7 @@ export const withoutTypeWidgetPrefix = (str: string) => {
 	return str.slice(customPropertyTypePrefix.length);
 };
 
-export const findKeyValueByDotNotation = (
-	key: string,
-	obj: Record<string, any>
-): {
-	key: string | undefined;
-	value: Record<string, unknown> | undefined;
-} => {
-	const keys = key.toLowerCase().split(".");
-
-	let currentValue = obj;
-	let currentKey: string | undefined = undefined;
-	for (const k of keys) {
-		if (typeof currentValue !== "object")
-			return {
-				key: undefined,
-				value: undefined,
-			};
-		const foundKey = Object.keys(currentValue ?? {}).find(
-			(objKey) => objKey.toLowerCase() === k
-		);
-
-		if (!foundKey)
-			return {
-				key: undefined,
-				value: undefined,
-			};
-		currentKey = foundKey;
-		currentValue = currentValue[foundKey];
-	}
-	return {
-		key: currentKey,
-		value: currentValue,
-	};
-};
-
-export const updateNestedObject = (
-	obj: Record<string, unknown>,
-	key: string,
-	value: unknown
-): Record<string, unknown> => {
-	const keys = key.split(".");
-	let current = obj;
-
-	for (let i = 0; i < keys.length - 1; i++) {
-		const k = keys[i];
-
-		if (k === "") {
-			return obj;
-		}
-
-		// ensure the current level exists and is an object
-		if (!current[k] || typeof current[k] !== "object") {
-			current[k] = {};
-		}
-
-		current = current[k] as Record<string, unknown>;
-	}
-
-	// update final key
-	current[keys[keys.length - 1]] = value;
-
-	return obj;
-};
+export { findKeyValueByDotNotation, updateNestedObject } from "~/core/properties";
 
 export const flashElement = (el: HTMLElement, timeout?: number) => {
 	const isFlashingClass = "is-flashing";

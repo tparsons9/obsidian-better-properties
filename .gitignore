@@ -1,5 +1,5 @@
 # vscode
-.vscode 
+.vscode
 
 # Intellij
 *.iml
@@ -24,3 +24,8 @@ data.json
 # all .env files
 .env
 .env.*
+# Verification artifacts
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo

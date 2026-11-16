@@ -1,11 +1,10 @@
+import { moment } from "~/lib/obsidian";
 import { CREATED } from "~/lib/constants";
-import { CustomPropertyType, PropertyTypeSchema } from "../types";
+import { CustomPropertyType } from "../types";
 import { registerListeners } from "./registerListeners";
 import { renderSettings } from "./renderSettings";
 import { renderWidget } from "./renderWidget";
-import { moment } from "obsidian";
 import { text } from "~/i18next";
-import * as v from "valibot";
 
 export const createdPropertyType: CustomPropertyType = {
 	type: "created",
@@ -18,8 +17,4 @@ export const createdPropertyType: CustomPropertyType = {
 	reservedKeys: [CREATED],
 };
 
-export const createdSettingsSchema = v.optional(
-	v.object({
-		format: v.optional(v.string()),
-	})
-) satisfies PropertyTypeSchema;
+export { createdSettingsSchema } from "./schema";

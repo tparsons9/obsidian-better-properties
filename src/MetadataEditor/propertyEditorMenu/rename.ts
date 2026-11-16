@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { TextComponent, setIcon, ButtonComponent } from "obsidian";
 import { ConfirmationModal } from "~/classes/ConfirmationModal";
 import { text } from "~/i18next";
@@ -58,12 +59,12 @@ export const openRenameModal = ({
 								modal.close();
 							});
 					})
-					.addFooterButton((btn) =>
+					.addFooterButton(asyncHandler((btn) =>
 						btn
 							.setButtonText(obsidianText("dialogue.button-cancel"))
 							.onClick(() => {
 								modal.close();
-							})
+							}))
 					);
 
 				textCmp.onChange((v) => {

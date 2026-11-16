@@ -2,12 +2,10 @@ import { text } from "~/i18next";
 import {
 	CustomPropertyType,
 	CustomTypeKey,
-	PropertyTypeSchema,
 } from "../types";
 import { registerListeners } from "./registerListeners";
 import { renderSettings } from "./renderSettings";
 import { renderWidget } from "./renderWidget";
-import * as v from "valibot";
 
 export const typeKey = "rating" satisfies CustomTypeKey;
 
@@ -21,9 +19,4 @@ export const ratingPropertyType: CustomPropertyType = {
 	renderWidget,
 };
 
-export const ratingSettingsSchema = v.optional(
-	v.object({
-		icon: v.optional(v.string()),
-		count: v.optional(v.number()),
-	})
-) satisfies PropertyTypeSchema;
+export { ratingSettingsSchema } from "./schema";

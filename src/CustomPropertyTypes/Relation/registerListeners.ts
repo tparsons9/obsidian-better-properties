@@ -1,3 +1,5 @@
+import { asyncHandler } from "~/lib/async";
+import { isRecord } from "~/core/properties";
 import BetterProperties from "~/main";
 import { CustomPropertyType } from "../types";
 import {
@@ -11,7 +13,7 @@ import { typeKey } from ".";
 import { customPropertyTypePrefix } from "~/lib/constants";
 
 export const registerListeners: CustomPropertyType["registerListeners"] = (
-	plugin: BetterProperties
+	_plugin: BetterProperties
 ) => {
 	/**
 	 * // TODO
@@ -28,7 +30,7 @@ export const registerListeners: CustomPropertyType["registerListeners"] = (
 	// );
 };
 
-const updateRelatedFiles = (
+export const updateRelatedFiles = (
 	plugin: BetterProperties,
 	data: {
 		file: TFile;
@@ -40,8 +42,8 @@ const updateRelatedFiles = (
 ) => {
 	const { metadataCache, fileManager } = plugin.app;
 	const { file, oldValue, value, relatedProperty } = data;
-	const alias: string | undefined =
-		metadataCache.getFileCache(file)?.frontmatter?.["aliases"]?.[0];
+	const aliases: unknown = metadataCache.getFileCache(file)?.frontmatter?.["aliases"];
+	const alias = Array.isArray(aliases) && typeof aliases[0] === "string" ? aliases[0] : undefined;
 	const oldSet = new Set(oldValue);
 	const newSet = new Set(value);
 	const allSet = oldSet.union(newSet);
@@ -59,10 +61,11 @@ const updateRelatedFiles = (
 			undefined,
 			alias
 		);
-		fileManager.processFrontMatter(foundFile, (fm) => {
+		asyncHandler(() => fileManager.processFrontMatter(foundFile, (fm) => {
+			if (!isRecord(fm)) return;
 			const relatedValue = findKeyValueByDotNotation(relatedProperty, fm).value;
 			const parsedRelatedValue: string[] = Array.isArray(relatedValue)
-				? relatedValue
+				? relatedValue.filter((item: unknown): item is string => typeof item === "string")
 				: [];
 
 			const hasSourceLinktext = parsedRelatedValue.includes(sourceLinktext);
@@ -75,15 +78,15 @@ const updateRelatedFiles = (
 					? parsedRelatedValue.filter((s) => s !== sourceLinktext)
 					: [...parsedRelatedValue, sourceLinktext]
 			);
-		});
+		}))();
 	});
 };
 
-class RelationSynManager {
+export class RelationSynManager {
 	isWorking: boolean = false;
 	transactionMap: Map<TFile, Transaction> = new Map();
 
-	constructor(public plugin: BetterProperties) {}
+	constructor(public plugin: BetterProperties) { }
 
 	getRelationProperties(): string[] {
 		const arr: string[] = [];
@@ -105,8 +108,8 @@ class RelationSynManager {
 			vault,
 			callback: ({ file, metadata }) => {
 				this.getRelationProperties().forEach((property) => {
-					const value = metadata?.frontmatter?.[property];
-					const parsedValue: string[] = Array.isArray(value) ? value : [];
+					const value: unknown = metadata?.frontmatter?.[property];
+					const parsedValue: string[] = Array.isArray(value) ? value.filter((item: unknown): item is string => typeof item === "string") : [];
 					parsedValue.forEach((linktext) => {
 						const linkedFile = getFirstLinkPathDest(
 							metadataCache,
@@ -124,7 +127,7 @@ class RelationSynManager {
 
 						const relatedPropertyValue: unknown =
 							metadataCache.getFileCache(linkedFile)?.frontmatter?.[
-								relatedProperty
+							relatedProperty
 							];
 
 						const isIncluded =
@@ -132,7 +135,7 @@ class RelationSynManager {
 							relatedPropertyValue.some((v) => {
 								return (
 									file ===
-									getFirstLinkPathDest(metadataCache, linkedFile.path, v)
+									getFirstLinkPathDest(metadataCache, linkedFile.path, typeof v === "string" ? v : "")
 								);
 							});
 

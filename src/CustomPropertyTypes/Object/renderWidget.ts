@@ -1,3 +1,4 @@
+import { isRecord } from "~/core/properties";
 import { displayTooltip, setIcon } from "obsidian";
 import {
 	CustomPropertyType,
@@ -150,10 +151,13 @@ class SubPropertyComponent extends PropertyComponent {
 			const trueParentKeyArr = this.parentCtx.key.split(".");
 			trueParentKeyArr.pop();
 			const trueParentKey = trueParentKeyArr.join(".");
-			return frontmatter?.[trueParentKey]?.[this.parentCtx.index] ?? {};
+			const array: unknown = frontmatter?.[trueParentKey];
+			const value: unknown = Array.isArray(array) ? array[this.parentCtx.index] : undefined;
+			return isRecord(value) ? value : {};
 		}
 
-		return frontmatter?.[this.parentCtx.key] ?? {};
+		const value: unknown = frontmatter?.[this.parentCtx.key];
+		return isRecord(value) ? value : {};
 	}
 
 	onChangeCallback: (v: unknown) => void = (value) => {
@@ -242,6 +246,7 @@ class SubPropertyComponent extends PropertyComponent {
 		if (!this.propertyEl) return iconEl;
 
 		makeDraggable({
+			registerCleanup: (cleanup) => this.plugin.registerRuntime(cleanup),
 			itemEl: this.propertyEl,
 			dragHandleEl: iconEl,
 			parentEl: this.containerEl,

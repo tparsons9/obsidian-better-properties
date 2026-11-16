@@ -1,4 +1,5 @@
-import { moment, setIcon } from "obsidian";
+import { moment } from "~/lib/obsidian";
+import { setIcon } from "obsidian";
 import { CustomPropertyType } from "../types";
 import { PropertyWidgetComponentNew } from "../utils";
 import { obsidianText } from "~/i18next/obsidian";

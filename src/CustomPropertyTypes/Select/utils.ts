@@ -1,3 +1,4 @@
+import { asyncHandler } from "~/lib/async";
 import { iterateFileMetadata, tryCatch } from "~/lib/utils";
 import BetterProperties from "~/main";
 import { PropertySettings } from "../types";
@@ -16,7 +17,7 @@ import { FileSuggest } from "~/classes/InputSuggest/FileSuggest";
 import { FolderSuggest } from "~/classes/InputSuggest/FolderSuggest";
 import { TagSuggest } from "~/classes/InputSuggest/TagSuggest";
 import { ListSetting } from "~/classes/ListSetting";
-import { MultiselectComponent } from "~/classes/MultiSelect";
+import { createMultiselectComponent } from "~/classes/MultiSelect";
 import { selectColors } from "~/lib/constants";
 import { Icon } from "~/lib/types/icons";
 import { PropertySettingsModal } from "../settings";
@@ -29,8 +30,8 @@ export type SelectOptionsType = NonNullable<SelectSettings["optionsType"]>;
 export type SelectOption = NonNullable<SelectSettings["manualOptions"]>[number];
 
 // prettier-ignore
-export const selectOptionInlineCodeTemplate = 
-`async (props) => {
+export const selectOptionInlineCodeTemplate =
+	`async (props) => {
 	const appleOption = {
 		value: "apple",
 		label: "Apple", // optional
@@ -64,7 +65,8 @@ export const tryRunInlineCode = async (
 ) => {
 	return tryCatch(async () => {
 		const fn: InlineCodeFunction =
-			typeof fnString === "string" ? eval(fnString) : fnString;
+			// eslint-disable-next-line no-eval -- Executes the existing user-authored scripting API in its original scope.
+			typeof fnString === "string" ? eval(fnString) as InlineCodeFunction : fnString;
 		if (typeof fn !== "function") {
 			throw new Error(`Expected type "function" but got type ${typeof fn}`);
 		}
@@ -112,6 +114,7 @@ export const tryRunFileCode = async (
 		const module: {
 			default?: InlineCodeFunction;
 		} = {};
+		// eslint-disable-next-line no-eval -- Executes the existing user-authored scripting API in its original scope.
 		eval(content); // should define module.default
 
 		if (typeof module.default !== "function") {
@@ -290,7 +293,7 @@ export const renderManualOptionsSetting = ({
 				.addDeleteButton();
 		})
 		.renderAllItems()
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn.setIcon("lucide-sort-asc" satisfies Icon).onClick((ev) => {
 				const menu = new Menu()
 					.setNoIcon()
@@ -331,9 +334,9 @@ export const renderManualOptionsSetting = ({
 							})
 					);
 				menu.showAtMouseEvent(ev);
-			})
+			}))
 		)
-		.addFooterButton((btn) =>
+		.addFooterButton(asyncHandler((btn) =>
 			btn
 				.setCta()
 				.setIcon("lucide-plus" satisfies Icon)
@@ -342,7 +345,7 @@ export const renderManualOptionsSetting = ({
 						value: defaultOption?.value ?? "",
 						label: defaultOption?.label ?? "",
 					});
-				})
+				}))
 		);
 
 	return list;
@@ -413,9 +416,9 @@ export const renderDynamicSettings = ({
 				} satisfies Record<NonNullable<SelectSettings["dynamicOptionsType"]>, string>)
 				.setValue(
 					settings.dynamicOptionsType ??
-						("filesInFolder" satisfies NonNullable<
-							SelectSettings["dynamicOptionsType"]
-						>)
+					("filesInFolder" satisfies NonNullable<
+						SelectSettings["dynamicOptionsType"]
+					>)
 				)
 				.onChange((v) => {
 					const opt = v as NonNullable<SelectSettings["dynamicOptionsType"]>;
@@ -495,7 +498,7 @@ export const renderFilesFromTagSettings = ({
 			)
 		)
 		.then((s) => {
-			const tagsMultiSelect = new MultiselectComponent(s);
+			const tagsMultiSelect = createMultiselectComponent(plugin.app, s);
 			tagsMultiSelect
 				.setValues(settings.tagOptionsTags ?? [])
 				.onChange((v) => (settings.tagOptionsTags = v))
@@ -596,13 +599,12 @@ export const renderFilesFromInlineJsSettings = ({
 					if (!settings.inlineJsOptionsCode) {
 						return;
 					}
-					const { success, data, error } = await tryRunInlineCode(
+					const { success, error } = await tryRunInlineCode(
 						plugin,
 						settings.inlineJsOptionsCode
 					);
 
 					if (success) {
-						console.log(data);
 						new Notice("Validation successful");
 						return;
 					}
@@ -687,13 +689,12 @@ export const renderFilesFromFileJsSetings = ({
 					if (!settings.fileJsOptionsPath) {
 						return;
 					}
-					const { success, data, error } = await tryRunFileCode(
+					const { success, error } = await tryRunFileCode(
 						plugin,
 						settings.fileJsOptionsPath
 					);
 
 					if (success) {
-						console.log(data);
 						new Notice("Validation successful");
 						return;
 					}
@@ -1031,7 +1032,7 @@ export const getTagOptions = ({
 			// TODO obsidian-typings shows that the output here doesn't include hashtags, when it in fact does include them-- need to open PR to fix
 			const fileTags = getAllTags(metadata);
 			if (!fileTags) return;
-			let isMatch = false;
+			let isMatch: boolean;
 			if (!includeNested) {
 				const fileTagsSet = new Set(fileTags);
 				isMatch = tagsWithHashtags.some((t) => fileTagsSet.has(t));

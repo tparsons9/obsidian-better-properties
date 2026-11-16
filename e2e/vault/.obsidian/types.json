@@ -1,0 +1,11 @@
+{
+  "types": {
+    "flag": "better-properties:toggle",
+    "score": "better-properties:numeric",
+    "details": "better-properties:object",
+    "status": "better-properties:select",
+    "choices": "better-properties:multiselect",
+    "dynamic": "better-properties:select",
+    "filedynamic": "better-properties:select"
+  }
+}

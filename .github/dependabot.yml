@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # Move dependency, lockfile, and reusable workflow pins together with opdk.
+      - dependency-name: obsidian-plugin-dev-kit
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "Dimagious/obsidian-plugin-dev-kit*"
