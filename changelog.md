@@ -9,12 +9,16 @@ release. Some specific details may be omitted for brevity.
 
 - Adopt the pinned opdk build, static checks, regression tests, and CI workflows.
 - Separate settings schemas from UI initialization and preserve upstream settings formats.
+- Generate root `styles.css` from tracked `src/styles/main.css`; CSS-only edits now synchronize during opdk vault watching.
 
 ### Fixed
 
 - Preserve arrays, null, false, and zero during property edits and default application.
 - Await vault-wide edits and retain configuration when a file cannot be written.
 - Serialize settings saves and restore plugin-owned patches when unloading.
+- Show the full delete warning and persist the inverse of “Don't ask again” for delete/reset confirmations; reset also works when confirmation is disabled.
+- Remove stylesheet scanner findings in the plugin and docs while preserving scoped property styling, nested collapse state, and select empty states.
+- Correct Markdown line height, initialize its embedded editor with the note's source file, and restore plugin styling in popouts by avoiding CodeMirror's generated base class.
 
 ## [1.0.0]
 Not many user-facing changes this time, but I wanted to submit BP to the community plugins directory to hopefully get it approved before the end of the year. Fingers crossed🤞

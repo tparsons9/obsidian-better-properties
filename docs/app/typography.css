@@ -111,7 +111,7 @@
       color: var(--color-primary);
       text-decoration: underline;
       text-underline-offset: var(--spacing);
-      &:has(code:not(.not-typography)),
+      &.docs-code-link,
       code & {
         text-decoration: none;
       }

@@ -1,7 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["vite.config.ts"],
+  "include": ["vite.config.ts", "rehype-style-hooks.ts", "rehype-style-hooks.test.ts"],
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "composite": true,
     "strict": true,
     "types": ["node"],

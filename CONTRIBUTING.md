@@ -6,7 +6,9 @@ Run `npm run verify` before submitting changes. Run `npm run e2e` for runtime, i
 
 Type checking includes runtime source, tests, E2E specs, and tooling. Unit tests run in Node with a small typed Obsidian boundary fake; use the real-app fixture for UI behavior. Add regression tests for data transformations and error paths. The initial coverage gate explicitly covers the extracted core and schemas, not all source. Expand the inclusion list as additional modules gain meaningful tests; do not lower the thresholds to hide gaps.
 
-Property schemas live in each type's `schema.ts`, separate from UI imports. The existing type entrypoints re-export their schemas. Settings schemas and saved defaults are in `src/Plugin/schema.ts`. Root `styles.css` remains maintained source.
+Property schemas live in each type's `schema.ts`, separate from UI imports. The existing type entrypoints re-export their schemas. Settings schemas and saved defaults are in `src/Plugin/schema.ts`. Maintain CSS in `src/styles/main.css`; root `styles.css` is generated and ignored, like `main.js`. Opdk builds and watches the CSS entry and its local imports. CSS-only edits synchronize into the explicit vault target without a TypeScript edit. Restart watch after changing opdk configuration.
+
+Use stable scoped selectors, with rendered classes/attributes for parent state. Do not reference CodeMirror's generated base class: Obsidian's popout style copier excludes any stylesheet containing it. Check computed styles and actual screenshots in both the main window and popouts. Keep stylesheet source tracked for scanning and reproducible releases.
 
 ## Data and lifecycle rules
 
@@ -22,7 +24,7 @@ Run `npm run scan` to see the scanner's unmodified findings. It scans Git-tracke
 
 The scanner is advisory during this foundation pass. Project ESLint remains blocking, with statement-level exceptions for intentional `eval` in Select, MultiSelect, and bpjs; bpjs's user CSS imports; and the imperative settings tab retained for Obsidian 1.9.14 compatibility. The lint configuration permits these exceptions only in their owning files. All other preset restrictions remain active.
 
-Remaining stylesheet findings include `:has()` and `!important` in the plugin stylesheet and the separate documentation app. They are recorded debt, not a reason to change user scripting semantics or redesign the documentation site. TypeScript suppression advisories also remain visible for internal API boundaries.
+Stylesheet findings in the plugin and separate documentation app have been resolved. The docs app adds heading/code-link classes during Markdown compilation; its dependencies and checks remain separate (see `docs/README.md`). TypeScript suppression advisories remain visible for internal API boundaries.
 
 ## Release procedure
 
@@ -55,12 +57,22 @@ Keep `isDesktopOnly: false` and the current 1.9.14 minimum. API checks and bundl
 
 GitHub workflows are configured but were not executed remotely. Obsidian 1.9.14 and native phones were not runtime-tested in this pass. No version bump, tag, push, or release was performed.
 
+## CSS and confirmation maintenance validation — 2026-11-16
+
+- CSS generation initially matched the handwritten stylesheet byte for byte. With an explicit temporary vault target and `VAULT_PLUGIN` removed, the opdk watcher synchronized a CSS-only edit and its restoration without changing JavaScript bytes.
+- `npm run verify` passed with 47 unit tests and 100% coverage for the explicitly scoped core/schema modules.
+- All 19 isolated E2E scenarios passed with `OBSIDIAN_VERSION=1.15.1`, including four confirmation regressions and four style scenarios. These check warning descriptions, persisted opt-outs, cancellation and confirmed actions; nested objects/arrays and collapse state; Markdown typography, fold state and edit persistence; empty-select transitions; light/dark themes; popouts; and simulated mobile.
+- Reviewed screenshots from both themes in the main window and popouts. The popout regression exposed the old generated CodeMirror class reference that made Obsidian omit the entire plugin stylesheet. The CSS now uses a stable scoped scroller selector. The Markdown fixture also exposed the uninitialized temporary `TFile`; prototype resolution now uses the actual source note.
+- Raw scanning reports zero CSS findings, down from 15, including the two docs app findings. The nine documented policy exceptions and internal typing advisories remain visible; raw scanning is still advisory.
+- `npm run release:check:full` passed in a disposable committed snapshot of the final source. Working-tree and committed-tree JavaScript/CSS matched byte for byte; the API check found no usage newer than 1.9.14. The original branch was not committed.
+- In the separate docs app, the production build, two style-transform tests, and configuration/transform type checks passed. A headless Chrome preview of the compiled CSS passed heading alignment, permalink hover and code/ordinary-link decoration checks in both themes. Full docs type checking still fails on MDX declarations and `Env.GITHUB_PAT`; a disposable baseline checkout produced identical diagnostics. Neither lockfile changed.
+
+The runtime evidence remains Obsidian 1.15.1 with simulated mobile, not 1.9.14 or native-device testing. Remote workflows have not been run.
+
 ## Maintenance follow-ups
 
-- Adopt opdk CSS generation/watch: move the handwritten stylesheet to `src/styles/main.css`, generate root `styles.css`, update tracking/documentation, and verify that CSS-only edits reach a temporary vault. The current `css: false` preserves the original stylesheet but does not watch it.
-- Fix confirmation dialogs: the delete dialog uses the title translation key for its body; delete/reset “Don't ask again” checkboxes currently assign the confirmation flag directly instead of inverting it. Add UI regressions for the warning text, confirmation preferences and cancellation.
-- Clean up stylesheet findings and invalid declarations, including the stray `I` in the Markdown widget's `line-height`. Verify nested properties, Markdown widgets, selects, light/dark themes and popouts when changing selectors or specificity. The documentation app accounts for two of the 15 scanner CSS findings.
 - Validate the pinned workflows on GitHub after the foundation is reviewed and pushed. Validate runtime behavior on the declared minimum Obsidian version and a native phone before making stronger compatibility claims.
 - Replace remaining internal-API TypeScript suppressions with narrow typed adapters as those areas are maintained, and extend focused UI/data regression coverage beyond the initial core/schema gate.
+- Repair the separate docs app's existing MDX declarations and `Env.GITHUB_PAT` typing so its full type check can become a blocking gate.
 
 The nine scanner policy findings require a deliberate compatibility decision about scripting, CSS imports and declarative settings. Keep them documented separately from fixable CSS defects.

@@ -25,16 +25,18 @@ import { asyncHandler } from "~/lib/async";
  * - @author Unxok
  */
 
-import { App, Constructor, MarkdownView, Scope, TFile } from "obsidian";
+import { App, Constructor, MarkdownView, Scope } from "obsidian";
 import { MarkdownScrollableEditView, WidgetEditorView } from "obsidian-typings";
 import { EditorSelection, Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap, placeholder, ViewUpdate } from "@codemirror/view";
 
-function resolveEditorPrototype(app: App) {
+function resolveEditorPrototype(app: App, filePath: string) {
+	const file = app.vault.getFileByPath(filePath);
+	if (!file) throw new Error(`Better Properties: Markdown source file not found: ${filePath}`);
 	// Create a temporary editor to resolve the prototype of ScrollableMarkdownEditor
 	const widgetEditorView = app.embedRegistry.embedByExtension.md(
 		{ app, containerEl: createDiv() },
-		new TFile(),
+		file,
 		""
 	) as WidgetEditorView;
 
@@ -123,7 +125,7 @@ export const createEmbeddableMarkdownEditor = ({
 	filePath: string;
 }) => {
 	class EmbeddableMarkdownEditor
-		extends resolveEditorPrototype(app)
+		extends resolveEditorPrototype(app, filePath)
 		implements MarkdownScrollableEditView {
 		options: MarkdownEditorProps;
 		initial_value: string;

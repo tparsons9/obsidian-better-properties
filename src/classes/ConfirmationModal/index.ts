@@ -37,7 +37,7 @@ class Checkbox {
 				type: "checkbox",
 			},
 		});
-		this.labelTextNode = activeDocument.createTextNode("");
+		this.labelTextNode = this.labelEl.ownerDocument.createTextNode("");
 		this.labelEl.appendChild(this.labelTextNode);
 		this.inputEl.addEventListener("change", () =>
 			this.onChangeCallback(this.inputEl.checked)

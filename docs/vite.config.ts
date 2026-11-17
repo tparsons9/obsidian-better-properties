@@ -11,6 +11,7 @@ import rehypeAutoLinkHeadings from "rehype-autolink-headings";
 import recmaExportFilepath from "recma-export-filepath";
 import remarkGfm from "remark-gfm";
 import rehypeStarryNight from "rehype-starry-night";
+import { rehypeStyleHooks } from "./rehype-style-hooks";
 
 export default defineConfig({
 	plugins: [
@@ -20,6 +21,7 @@ export default defineConfig({
 				rehypeSlug,
 				rehypeMdxToc,
 				rehypeAutoLinkHeadings,
+				rehypeStyleHooks,
 				rehypeStarryNight,
 			],
 			recmaPlugins: [recmaExportFilepath],

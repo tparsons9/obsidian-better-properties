@@ -15,7 +15,7 @@ export const openDeleteModal = ({
 	const modal = new ConfirmationModal(plugin.app)
 		.setTitle(text("metadataEditor.propertyMenu.delete.modalTitle"))
 		.setContent(
-			text("metadataEditor.propertyMenu.delete.modalTitle", { property })
+			text("metadataEditor.propertyMenu.delete.modalDesc", { property })
 		)
 		.setFooterCheckbox((checkbox) => {
 			checkbox
@@ -23,7 +23,7 @@ export const openDeleteModal = ({
 				.setLabel(text("common.dontAskAgain"))
 				.onChange(asyncHandler(async (b) => {
 					await plugin.updateSettings((s) => {
-						s.confirmPropertyDelete = b;
+						s.confirmPropertyDelete = !b;
 						return s;
 					});
 				}));

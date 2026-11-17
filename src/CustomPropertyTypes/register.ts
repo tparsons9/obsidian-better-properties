@@ -101,6 +101,13 @@ export const wrapAllPropertyTypeWidgets = (plugin: BetterProperties) => {
 					const toReturn = old(containerEl, value, ctx);
 
 					containerEl.setAttribute("data-property-type", widget.type);
+					const propertyEl = containerEl.parentElement;
+					propertyEl?.setAttribute("data-better-properties-type", widget.type);
+					propertyEl?.toggleAttribute(
+						"data-better-properties-indent-guide",
+						(widget.type === "better-properties:object" || widget.type === "better-properties:array") &&
+							!!plugin.app.vault.getConfig("showIndentGuide")
+					);
 
 					const settings = getPropertyTypeSettings({
 						plugin,
@@ -284,6 +291,7 @@ const renderCollapseIndicator = ({
 
 		const setAttr = (isCollapsed: boolean) => {
 			const attr = "data-better-properties-is-collapsed";
+			propertyValueEl.parentElement?.toggleAttribute(attr, isCollapsed);
 			isCollapsed
 				? collapseIndicator.setAttribute(attr, "true")
 				: collapseIndicator.removeAttribute(attr);

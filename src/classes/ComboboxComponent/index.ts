@@ -28,6 +28,10 @@ export abstract class ComboboxComponent<Option> extends ValueComponent<string> {
 		const emptyCls = "data-better-properties-combobox-mod-empty";
 		isEmpty && this.selectEl.classList.add(emptyCls);
 		!isEmpty && this.selectEl.classList.remove(emptyCls);
+		// A Select has two nested containers; MultiSelect has one.
+		for (let el = this.selectEl.parentElement; el?.classList.contains("better-properties-select-container"); el = el.parentElement) {
+			el.classList.toggle("better-properties-select-empty", isEmpty);
+		}
 	}
 
 	validateOption(value: string): boolean {

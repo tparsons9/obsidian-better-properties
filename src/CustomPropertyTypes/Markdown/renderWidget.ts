@@ -7,6 +7,8 @@ import {
 } from "~/classes/EmbeddableMarkdownEditor";
 import { PropertyRenderContext } from "obsidian-typings";
 import BetterProperties from "~/main";
+import { StateEffect } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 
 export const renderWidget: CustomPropertyType["renderWidget"] = ({
 	plugin,
@@ -48,6 +50,17 @@ class MarkdownTypeComponent extends PropertyWidgetComponentNew<
 			},
 			filePath: ctx.sourcePath,
 		});
+		// CodeMirror owns this listener and removes it when the editor is destroyed.
+		const syncFoldClass = () => el.classList.toggle(
+			"better-properties-markdown-has-folds",
+			!!el.querySelector(".collapse-indicator.collapse-icon")
+		);
+		// obsidian-typings duplicates CodeMirror's types, including private effect fields.
+		const view = this.embeddedMarkdownEditor.editor?.cm as unknown as EditorView | undefined;
+		view?.dispatch({
+			effects: StateEffect.appendConfig.of(EditorView.updateListener.of(syncFoldClass)),
+		});
+		syncFoldClass();
 
 		this.onFocus = () => {
 			this.embeddedMarkdownEditor.focus();

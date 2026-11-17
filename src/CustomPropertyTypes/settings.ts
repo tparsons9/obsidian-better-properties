@@ -291,7 +291,9 @@ const handleActionsTab = ({
 					.onClick(() => {
 						if (plugin.settings.confirmPropertySettingsReset ?? true) {
 							showResetModal(modal);
+							return;
 						}
+						deletePropertySettings({ plugin, property });
 					})
 			);
 	});
@@ -389,7 +391,7 @@ const showResetModal = (modal: PropertySettingsModal) => {
 				.onChange((v) => {
 					asyncHandler(() => modal.plugin.updateSettings((prev) => ({
 						...prev,
-						confirmPropertySettingsReset: v,
+						confirmPropertySettingsReset: !v,
 					})))();
 				})
 		)

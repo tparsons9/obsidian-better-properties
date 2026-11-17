@@ -86,9 +86,6 @@ body {
 		width: 100%;
 		min-width: fit-content;
 		text-wrap: nowrap;
-		.metadata-property:has(&) {
-			--input-radius: unset;
-		}
 	}
 
 	&[data-property-type="better-properties:multiselect"] {
@@ -245,50 +242,42 @@ body {
 		}
 	}
 
-	&[data-property-type="better-properties:markdown"] {
+	/* Scope above Obsidian/CodeMirror defaults without important declarations. */
+	&.metadata-property-value[data-property-type="better-properties:markdown"] {
 		padding: var(--input-padding);
 		font-size: var(--metadata-input-font-size);
 
-		&:has(.collapse-indicator.collapse-icon) {
+		&.better-properties-markdown-has-folds {
 			padding: 0 16px; /* 10px is width of svg-icon and 5px is padding-inline-end of .collapse-indicator plus an extra 1px for space... unfortunately these are manually defined in default stylesheet */
 		}
 		width: 100%;
-		font-family: var(--font-text) !important;
-		line-height: var(--line-height-normal) I !important;
+		font-family: var(--font-text);
+		line-height: var(--line-height-normal);
 
 		& > .cm-s-obsidian.mod-cm6.node-insert-event.is-live-preview {
 			width: 100%;
 		}
 
-		/* & .markdown-source-view.mod-cm6.is-readable-line-width .cm-content,
-		& .mod-cm6.is-readable-line-width .cm-content {
-			width: unset !important;
-		} */
-
 		&[data-better-properties-showLineNumber="false"] div.cm-gutters {
-			display: none !important;
+			display: none;
 		}
 		& div.cm-scroller {
 			overflow: visible;
-
-			.ͼ1 & {
-				font-family: var(--font-text);
-				line-height: var(--line-height-normal);
-			}
+			/* Obsidian excludes styles containing CodeMirror's generated base class
+			   from popouts. Use the stable, scoped scroller selector instead. */
+			font-family: var(--font-text);
+			line-height: var(--line-height-normal);
 		}
 
 		& .cm-line:not(.HyperMD-codeblock),
 		& .cm-content,
 		& .cm-sizer {
-			max-width: none !important;
-			/* width: fit-content !important; */
-			width: 100% !important;
-			line-height: inherit !important;
+			max-width: none;
+			width: 100%;
+			line-height: inherit;
 			display: inline-block;
 		}
 		& div[role="textbox"] {
-			/* width: fit-content; */
-			/* width: 100% !important; */
 			text-wrap: wrap;
 			white-space: pre-line;
 			display: inline-flex;
@@ -296,29 +285,28 @@ body {
 		}
 		& * {
 			text-align: inherit;
-			/* width: 100% !important; */
 		}
 	}
 }
 
-.metadata-property:has(
-		> .metadata-property-value
-			> &[data-property-type="better-properties:rating"]
-	) {
+.metadata-property[data-better-properties-type="better-properties:select"] {
+	--input-radius: unset;
+}
+
+.metadata-property[data-better-properties-type="better-properties:rating"] {
 	& > .metadata-property-value:focus-within {
 		background-color: var(--metadata-input-background);
 	}
 }
 
-.metadata-property:has(
-		> .metadata-property-key > [data-better-properties-is-collapsed]
-	) {
-	.metadata-property-value {
+.metadata-property[data-better-properties-is-collapsed] {
+	> .metadata-property-value {
 		display: none;
 	}
 }
 
-.metadata-property:has(.better-properties-mod-object) {
+.metadata-property[data-better-properties-type="better-properties:object"],
+.metadata-property[data-better-properties-type="better-properties:array"] {
 	display: flex;
 	flex-direction: column;
 	position: relative;
@@ -330,7 +318,7 @@ body {
 		background-color: var(--metadata-input-background);
 	}
 
-	&:has([data-better-properties-showindentguide="true"])::before {
+	&[data-better-properties-indent-guide]::before {
 		content: "";
 		position: absolute;
 		left: calc(
@@ -579,7 +567,7 @@ div.metadata-content {
 	display: flex;
 	gap: var(--size-2-2);
 
-	&:has(.data-better-properties-combobox-mod-empty) {
+	&.better-properties-select-empty {
 		width: 100%;
 	}
 

@@ -13,7 +13,7 @@ npm ci
 npm run verify
 ```
 
-`verify` runs type checking, lint, unit tests with coverage, the production build and bundle check, and release metadata checks. The generated `main.js` ships with `manifest.json` and the maintained root `styles.css`.
+`verify` runs type checking, lint, unit tests with coverage, the production build and bundle check, and release metadata checks. Generated `main.js` and `styles.css` ship with `manifest.json`.
 
 To build/watch into a development vault, provide its plugin directory explicitly:
 
@@ -24,7 +24,7 @@ npm run dev -- /absolute/path/to/test-vault/.obsidian/plugins/better-properties
 
 `VAULT_PLUGIN` is also supported by opdk. Check its value before relying on it. Do not override plugin-ID mismatch protection with `--force`.
 
-Root `styles.css` is currently handwritten source. With `build.css: false`, CSS-only edits do not trigger the watcher; rerun `npm run build:vault -- <plugin-directory>` to copy them. CSS is still included in releases and checked by the scanner.
+Edit `src/styles/main.css`. Opdk generates the ignored root `styles.css` during builds and watches CSS-only changes and local CSS imports in vault watch mode. Keep the source tracked; the scanner checks it. Restart the watcher after changing `opdk.config.mjs`.
 
 ## Tests
 
@@ -38,11 +38,11 @@ Unit tests cover settings compatibility, nested values, property rename/delete, 
 
 E2E tests launch real Obsidian through opdk with a temporary vault and separate user-data directory. On macOS the fixture uses `/Applications/Obsidian.app/Contents/Resources/app.asar`; set `OBSIDIAN_PATH` for another installation. `OBSIDIAN_VERSION=x.y.z` enforces a particular installed version; the fixture does not download Obsidian versions. Traces, screenshots, and videos are retained on failure in `test-results/`.
 
-The suite covers edits and reload persistence, settings persistence, scripting, plugin unload/reload, popouts, and simulated mobile mode. Simulated mobile testing does not replace testing on a native phone. E2E runs locally on macOS; Linux CI runs the static/unit/build gates.
+The suite covers edits and reload persistence, settings persistence, delete/reset confirmations and opt-outs, scripting, plugin unload/reload, light/dark property styling, popouts, and simulated mobile mode. Simulated mobile testing does not replace testing on a native phone. E2E runs locally on macOS; Linux CI runs the static/unit/build gates.
 
 ## Maintenance checks
 
-`npm run scan` produces the raw community-scanner report. CI uploads it as an advisory artifact. It currently reports intentional scripting/CSS imports, legacy settings UI, and stylesheet patterns. See [CONTRIBUTING.md](CONTRIBUTING.md) for the policy and release procedure. A green `verify` is not a claim of a clean community scorecard.
+`npm run scan` produces the raw community-scanner report. CI uploads it as an advisory artifact. Its remaining findings cover intentional scripting/CSS imports and legacy settings UI; stylesheet findings are resolved. See [CONTRIBUTING.md](CONTRIBUTING.md) for the policy and release procedure. A green `verify` is not a claim of a clean community scorecard.
 
 The production build reports esbuild's direct-eval warnings for existing user-authored scripting features. Those warnings remain visible; regression tests exercise scripting after bundling.
 

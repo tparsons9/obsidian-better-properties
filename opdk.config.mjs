@@ -2,8 +2,7 @@ import { defineConfig } from "obsidian-plugin-dev-kit";
 
 export default defineConfig({
 	build: {
-		// Keep handwritten styles.css; vault builds copy it, but CSS-only changes are not watched.
-		css: false,
+		css: { entry: "src/styles/main.css", outfile: "styles.css" },
 		external: [
 			"@codemirror/autocomplete", "@codemirror/collab", "@codemirror/commands",
 			"@codemirror/language", "@codemirror/lint", "@codemirror/search",

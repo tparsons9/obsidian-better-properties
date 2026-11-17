@@ -39,11 +39,12 @@ internal API, lifecycle or bundler changes. Tests use opdk's temporary vault and
 separate user-data directory; never launch a real user vault as a test. Use an
 explicit target for vault builds and do not bypass plugin-ID protection.
 
-`main.js` is generated. Root `styles.css` is currently handwritten source:
-`build.css: false` skips CSS generation, while vault builds copy it and the raw
-scanner still checks it. CSS-only edits are not watched; rerun the vault build.
-Do not treat `styles.css` as generated until a CSS pipeline migration changes
-that convention and the related documentation together.
+`main.js` and root `styles.css` are generated and ignored. Edit
+`src/styles/main.css`; opdk builds it and watches CSS-only edits and local imports
+when syncing into an explicit temporary vault. Keep the source tracked so the
+raw scanner sees it. Avoid CodeMirror's generated base class in the stylesheet:
+Obsidian excludes stylesheets containing it from popout copying. Use stable,
+scoped selectors and verify computed styles in both documents.
 
 The unit coverage gate covers explicitly listed core/schema modules, not all UI.
 Expand coverage with meaningful regression tests. Helpers and tests are
