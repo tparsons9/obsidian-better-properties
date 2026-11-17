@@ -5,6 +5,8 @@ release. Some specific details may be omitted for brevity.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-17
+
 ### Fixed
 
 - Use the shared main-window translator first; when Obsidian's internal i18next global is unavailable, use bundled English labels and interpolation, including native menu and dialog labels.
