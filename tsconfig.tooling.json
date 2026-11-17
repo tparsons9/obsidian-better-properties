@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
     "types": [
       "node",
       "obsidian-typings"
@@ -9,7 +11,8 @@
   "include": [
     "vitest.config.mts",
     "playwright.config.ts",
-    "e2e/**/*.ts"
+    "e2e/**/*.ts",
+    "e2e/*.cjs"
   ],
   "exclude": [
     "node_modules"

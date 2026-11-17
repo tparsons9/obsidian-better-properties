@@ -7,6 +7,7 @@ import {
 } from "obsidian";
 import BetterProperties from "~/main";
 import { BpJsApi } from "./api";
+import { registerLegacyBpjsMode } from "./legacyMode";
 
 export const createCodeBlockProcessor = (
 	plugin: BetterProperties
@@ -29,17 +30,6 @@ export const createCodeBlockProcessor = (
 
 	const BPJS = "bpjs";
 
-	const cm = activeWindow.CodeMirror as typeof activeWindow.CodeMirror & {
-		getMode(config: Record<string, unknown>, name: string): unknown;
-		modes?: Record<string, unknown>;
-	};
-	const previous = cm.modes?.[BPJS];
-	cm.defineMode(BPJS, (config: Record<string, unknown>) => cm.getMode(config, "javascript"));
-	const owned = cm.modes?.[BPJS];
-	plugin.registerRuntime(() => {
-		if (!cm.modes || cm.modes[BPJS] !== owned) return;
-		if (previous === undefined) delete cm.modes[BPJS];
-		else cm.modes[BPJS] = previous;
-	});
+	registerLegacyBpjsMode((cleanup) => plugin.registerRuntime(cleanup));
 	return [BPJS, cb];
 };

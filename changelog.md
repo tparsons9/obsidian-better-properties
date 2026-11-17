@@ -5,6 +5,16 @@ release. Some specific details may be omitted for brevity.
 
 ## [Unreleased]
 
+### Fixed
+
+- Use the shared main-window translator first; when Obsidian's internal i18next global is unavailable, use bundled English labels and interpolation, including native menu and dialog labels.
+- Resolve the shared CodeMirror 5 highlighter independently of the active window and keep bpjs execution available when the optional legacy highlighter is absent; preserve other plugins' mode replacements on unload.
+- Isolate the Obsidian CLI socket during Electron tests so test startup and teardown do not disconnect the normal app's CLI. Check renderer errors from startup through popouts and exercise enabling with a note already open and both shared globals unavailable.
+
+### Changed
+
+- Use standard Playwright configuration and setup hooks instead of a custom test runner, restoring direct test discovery and IDE integration while retaining CLI socket isolation and shared renderer error checks.
+
 ## [1.0.1] - 2026-11-17
 
 ### Changed

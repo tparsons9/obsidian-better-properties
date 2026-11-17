@@ -1,8 +1,9 @@
-import { NestedPaths } from "~/lib/utils";
+import type { NestedPaths } from "~/lib/utils";
+import { translate } from "./translate";
 
 // This needs to be updated on every new update to Obsidian
 /**
- * 1. In obsidian dev console type: `JSON.stringify(activeWindow.i18next.store.data.en.default, null, 2)` and copy it
+ * 1. When exposed by the host, inspect the main window's i18next.store.data.en.default in the dev console
  * 2. Go to any browser webpage and type `document.write(<paste>)` replace `<paste>` with what you just copied
  * 3. In that same webpage, set the style of the body to have `white-space: pre`
  * 4. Copy the (now formatted) JSON data
@@ -2685,8 +2686,33 @@ export type ObsidianDefaultText = {
 	};
 };
 
-const obsidianFixed = (key: string, variables?: Record<string, string>) => activeWindow.i18next.t(key, { ...variables, ns: "default" });
+// Keep a fallback for every host label used by the plugin. Restrict callers to
+// these keys so new labels cannot silently ship without an English fallback.
+const en = {
+	"interface.tooltip-restore-default-settings": "Restore default settings",
+	"interface.delete-action-short-name": "Delete",
+	"interface.settings": "Settings",
+	"interface.menu.rename": "Rename",
+	"interface.menu.remove": "Remove",
+	"interface.menu.cut": "Cut",
+	"interface.menu.copy": "Copy",
+	"interface.menu.paste": "Paste",
+	"interface.empty-state.create-new-file": "Create new note",
+	"interface.empty-state.empty": "Empty",
+	"dialogue.button-cancel": "Cancel",
+	"dialogue.button-update": "Update",
+	"properties.label-add-property-button": "Add property",
+	"properties.label-no-value": "Empty",
+	"properties.msg-duplicate-property-name": "Property already exists",
+	"properties.option-property-type": "Property type",
+	"properties.label-type-mismatch-warning": "Type mismatch, expected {{type}}",
+	"properties.label-change-property-type": "Display as {{type}}?",
+	"properties.label-change-property-type-desc": "Your {{oldType}} data is not compatible. It will be adapted to fit the new format.",
+	"plugins.daily-notes.label-syntax-link": "format reference",
+	"plugins.daily-notes.label-syntax-live-preview": "Your current syntax looks like this: ",
+} satisfies Partial<Record<NestedPaths<ObsidianDefaultText>, string>>;
+
 export const obsidianText = (
-	key: NestedPaths<ObsidianDefaultText>,
+	key: keyof typeof en,
 	variables?: Record<string, string>
-) => obsidianFixed(key, variables);
+) => translate("default", key, en[key], variables);
