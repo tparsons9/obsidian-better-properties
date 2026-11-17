@@ -5,6 +5,8 @@ release. Some specific details may be omitted for brevity.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-17
+
 ### Changed
 
 - Adopt the pinned opdk build, static checks, regression tests, and CI workflows.
